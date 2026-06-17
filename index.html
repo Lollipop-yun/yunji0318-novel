@@ -2,15 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- PWA 和移动端视口配置 -->
+    <!-- 使用 viewport-fit=cover 让网页延伸到刘海和底部小黑条区域 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>小说生成器</title>
 
-    <!-- PWA 核心配置 -->
     <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#F2F2F7">
-    
-    <!-- iOS PWA 专属全屏与图标配置 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="小说生成">
@@ -24,6 +21,7 @@
             --theme-blue: #007AFF;
             --nav-bg: rgba(255, 255, 255, 0.95);
             --red-badge: #FF3B30;
+            --danger-color: #FF3B30;
         }
 
         * {
@@ -31,7 +29,6 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-            /* 禁用长按选中文本，让它更像原生 App */
             user-select: none; 
         }
 
@@ -40,34 +37,44 @@
             background-color: #e5e5e5;
             display: flex;
             justify-content: center;
-            height: 100vh;
+            /* 修复Edge/移动端浏览器全屏底部空白BUG：使用动态视口高度 100dvh */
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
         }
 
-        /* 模拟屏幕容器，如果被安装为桌面App，它会自动铺满屏幕 */
         .app-container {
             width: 100%;
             max-width: 414px;
             height: 100%;
             background-color: var(--bg-color);
             position: relative;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
 
-        /* 顶部导航栏，预留刘海屏(safe-area)的距离 */
+        /* 顶部导航栏 */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: calc(24px + env(safe-area-inset-top)) 20px 10px;
+            padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 10px;
+            min-height: calc(64px + env(safe-area-inset-top, 0px));
         }
 
-        .header-left {
+        .header-left, .header-right {
             display: flex;
             align-items: baseline;
             gap: 12px;
+        }
+
+        .header-center {
+            display: none; /* 仅在编辑模式显示 */
+            flex: 1;
+            text-align: center;
+            font-size: 17px;
+            font-weight: 600;
         }
 
         .header-title {
@@ -77,45 +84,29 @@
             letter-spacing: 1px;
         }
 
-        .header-count {
-            font-size: 14px;
-            color: var(--text-sub);
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            color: var(--text-sub);
-            font-size: 14px;
-        }
-
-        .header-icon {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
+        .header-count { font-size: 14px; color: var(--text-sub); }
+        .header-icon { width: 20px; height: 20px; fill: currentColor; cursor: pointer; }
+        
+        .btn-text {
+            font-size: 16px;
+            color: var(--theme-blue);
             cursor: pointer;
         }
+        .text-danger { color: var(--danger-color); }
 
-        .dropdown {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            cursor: pointer;
-        }
-
-        /* 主体内容区 */
-        .content {
+        /* 内容区容器与 Tab 切换 */
+        .tab-content {
             flex: 1;
-            padding: 15px 20px;
             overflow-y: auto;
             scrollbar-width: none; 
-            padding-bottom: 100px;
-            position: relative; /* 为空状态绝对定位做准备 */
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+            display: none; /* 默认隐藏所有 */
+            position: relative;
         }
-        .content::-webkit-scrollbar { display: none; }
+        .tab-content.active { display: block; }
+        .tab-content::-webkit-scrollbar { display: none; }
 
-        /* 书架空空如也 状态提示 */
+        /* 书架空状态 */
         .empty-state {
             position: absolute;
             top: 40%;
@@ -132,6 +123,7 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 20px 15px;
+            padding: 15px 20px;
         }
 
         .book-item {
@@ -139,14 +131,7 @@
             flex-direction: column;
             align-items: center;
             cursor: pointer;
-            transition: transform 0.2s;
-            animation: fadeIn 0.4s ease;
-        }
-        .book-item:active { transform: scale(0.95); }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            position: relative;
         }
 
         .book-cover-wrap {
@@ -157,52 +142,126 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.08);
             overflow: hidden;
             background-color: #fff;
+            transition: opacity 0.2s;
         }
 
-        .book-cover {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .badge-new {
+        /* 多选复选框样式 */
+        .book-checkbox {
             position: absolute;
-            top: 0;
-            right: 0;
-            background-color: var(--red-badge);
-            color: white;
+            top: 8px;
+            right: 8px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1.5px solid #d1d1d6;
+            display: none; /* 默认隐藏 */
+            z-index: 2;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 编辑模式下的状态 */
+        .mode-edit .book-checkbox { display: block; }
+        .mode-edit .book-item.selected .book-cover-wrap { opacity: 0.7; }
+        .mode-edit .book-item.selected .book-checkbox {
+            background: var(--theme-blue);
+            border-color: var(--theme-blue);
+        }
+        .mode-edit .book-item.selected .book-checkbox::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 7.5px;
+            width: 4px;
+            height: 9px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+
+        .book-cover { width: 100%; height: 100%; object-fit: cover; }
+        .book-info { margin-top: 10px; text-align: center; width: 100%; }
+        .book-title { font-size: 12px; color: var(--text-main); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .book-progress { font-size: 11px; color: var(--text-sub); margin-top: 4px; }
+
+        /* ================= 我的页面 (My Tab) 专属样式 ================= */
+        .my-container { padding: 0 20px; }
+        
+        /* 模糊大背景文字 */
+        .bg-watermark {
+            font-size: 36px;
+            font-weight: 800;
+            color: rgba(0,0,0,0.03);
+            margin-bottom: -20px;
+            padding-left: 10px;
+        }
+
+        /* 日记卡片 (仿照截图第一张卡) */
+        .diary-card {
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.02);
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .diary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; }
+        .user-name-box { display: flex; flex-direction: column; }
+        .user-name { font-size: 14px; font-weight: 600; color: #000; }
+        .user-id { font-size: 12px; color: var(--text-sub); }
+        .diary-date { font-size: 12px; color: var(--text-sub); text-align: right; }
+
+        .diary-content { font-size: 14px; line-height: 1.8; color: #333; margin-bottom: 20px; word-break: break-all; }
+        .diary-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-sub); }
+        .diary-actions { display: flex; gap: 12px; }
+
+        /* 菜单组 (仿照截图下方的列表) */
+        .menu-group {
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.02);
+            margin-bottom: 16px;
+            position: relative;
+        }
+        
+        .menu-badge-online {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #f2f2f7;
+            padding: 2px 8px;
+            border-radius: 10px;
             font-size: 10px;
-            font-weight: 600;
-            padding: 2px 6px;
-            border-bottom-left-radius: 6px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .menu-badge-online::before {
+            content: ''; width: 4px; height: 4px; background: #c5c5c5; border-radius: 50%;
         }
 
-        .book-info {
-            margin-top: 10px;
-            text-align: center;
-            width: 100%;
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 18px 20px;
+            border-bottom: 1px solid #f9f9f9;
+            cursor: pointer;
         }
+        .menu-item:last-child { border-bottom: none; }
+        .menu-icon { width: 22px; height: 22px; margin-right: 16px; fill: none; stroke: #333; stroke-width: 1.5; }
+        .menu-text { flex: 1; font-family: "Courier New", Courier, monospace; font-size: 14px; color: #333; letter-spacing: 0.5px; }
+        .menu-arrow { width: 16px; height: 16px; fill: #ccc; }
 
-        .book-title {
-            font-size: 12px;
-            color: var(--text-main);
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        .book-progress {
-            font-size: 11px;
-            color: var(--text-sub);
-            margin-top: 4px;
-        }
-
-        /* 底部悬浮导航栏 */
+        /* ================= 底部悬浮导航栏 ================= */
         .bottom-nav-wrap {
             position: absolute;
-            bottom: calc(25px + env(safe-area-inset-bottom));
+            /* 适配底部安全区(小黑条) */
+            bottom: max(20px, env(safe-area-inset-bottom, 20px));
             left: 20px;
             right: 20px;
             background: var(--nav-bg);
@@ -231,81 +290,139 @@
             transition: all 0.3s ease;
         }
 
-        .nav-item svg {
-            width: 20px;
-            height: 20px;
-            fill: currentColor;
-        }
-
-        .nav-item.active {
-            background-color: #EBF4FF;
-            color: var(--theme-blue);
-        }
-
-        .generate-btn {
-            position: absolute;
-            bottom: calc(100px + env(safe-area-inset-bottom));
-            right: 20px;
-            background: var(--theme-blue);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
-            cursor: pointer;
-            z-index: 9;
-        }
-        .generate-btn:active { background: #005ecb; }
+        .nav-item svg { width: 20px; height: 20px; fill: currentColor; }
+        .nav-item.active { background-color: #EBF4FF; color: var(--theme-blue); }
     </style>
 </head>
 <body>
 
-<div class="app-container">
+<div class="app-container" id="app-container">
     
+    <!-- 全局顶部区域 -->
     <header class="header">
-        <div class="header-left">
-            <h1 class="header-title">书架</h1>
-            <!-- 初始为 0 本 -->
+        <!-- 常规模式头部 -->
+        <div class="header-left" id="header-normal-left">
+            <h1 class="header-title" onclick="debugAddBook()">书架</h1>
             <span class="header-count" id="book-count">0本</span>
         </div>
-        <div class="header-right">
-            <div class="dropdown">
-                全部
-                <svg viewBox="0 0 24 24" class="header-icon" style="width:14px;height:14px;"><path d="M7 10l5 5 5-5z"/></svg>
-            </div>
-            <svg viewBox="0 0 24 24" class="header-icon"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            <svg viewBox="0 0 24 24" class="header-icon"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        <div class="header-right" id="header-normal-right">
+            <!-- 更多(三个点)图标 -> 触发多选删除 -->
+            <svg viewBox="0 0 24 24" class="header-icon" onclick="toggleEditMode()"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        </div>
+
+        <!-- 编辑(多选)模式头部 -->
+        <div class="header-left" id="header-edit-left" style="display: none;">
+            <span class="btn-text" onclick="toggleEditMode()">取消</span>
+        </div>
+        <div class="header-center" id="header-edit-center">
+            已选择 <span id="selected-count">0</span> 项
+        </div>
+        <div class="header-right" id="header-edit-right" style="display: none;">
+            <span class="btn-text text-danger" onclick="deleteSelected()">删除</span>
         </div>
     </header>
 
-    <div class="content">
-        <!-- 初始空状态文字 -->
+    <!-- Tab 1: 书架 (默认显示) -->
+    <div class="tab-content active" id="tab-bookshelf">
         <div id="empty-state" class="empty-state">当前书架空空如也</div>
-        
         <div class="book-grid" id="book-grid">
-            <!-- 书籍将被动态插入到这里 -->
+            <!-- 书籍列表 -->
         </div>
     </div>
 
-    <!-- 演示用生成按钮 -->
-    <button class="generate-btn" onclick="generateNovel()">+ 模拟AI生成</button>
+    <!-- Tab 2: 我的 -->
+    <div class="tab-content" id="tab-profile">
+        <div class="my-container">
+            <div class="bg-watermark">icity · 我的日记</div>
+            
+            <!-- 用户信息日记卡片 -->
+            <div class="diary-card">
+                <div class="diary-header">
+                    <div class="user-info">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" class="avatar" alt="头像">
+                        <div class="user-name-box">
+                            <span class="user-name">owozzz</span>
+                            <span class="user-id">@mizukiz117</span>
+                        </div>
+                    </div>
+                    <div class="diary-date">6月21日 · 星期六<br>20:25</div>
+                </div>
+                <div class="diary-content">
+                    -<br><br>
+                    우리의 사랑은<br>
+                    카메라에 비친 영원한 파라미터다 ·★·
+                </div>
+                <div class="diary-meta">
+                    <span>🕒 2025-06-17</span>
+                    <div class="diary-actions">
+                        <span>💬 0</span>
+                        <span>❤️ 12</span>
+                    </div>
+                </div>
+            </div>
 
-    <div class="bottom-nav-wrap">
-        <a href="#" class="nav-item active" onclick="switchTab(this)">
+            <!-- 菜单列表 1 -->
+            <div class="menu-group" style="margin-top: 30px;">
+                <div class="menu-badge-online">Online</div>
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M12 2L2 22h20L12 2z" fill="none" stroke="currentColor"/></svg>
+                    <span class="menu-text">Δ ∝ ⌒ service</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                </div>
+            </div>
+
+            <!-- 菜单列表 2 -->
+            <div class="menu-group" style="margin-top: 25px;">
+                <div class="menu-badge-online">Online</div>
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    <span class="menu-text">{ ≡···collection }</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                </div>
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                    <span class="menu-text">「#、 」 pyq</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                </div>
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                    <span class="menu-text">:( :-O emoji</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                </div>
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V11a2 2 0 0 0-2-2h-2V7a5 5 0 0 0-5-5z"/></svg>
+                    <span class="menu-text">=···♣</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                </div>
+            </div>
+            
+            <div class="menu-group" style="margin-top: 25px;">
+                <div class="menu-item">
+                    <svg class="menu-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    <span class="menu-text">」 ★=、</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- 底部导航栏 -->
+    <div class="bottom-nav-wrap" id="bottom-nav">
+        <a href="javascript:void(0)" class="nav-item active" onclick="switchTab('tab-bookshelf', this)">
             <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9H9V9h8v2zm0-4H9V5h8v2z"/></svg>
             书架
         </a>
-        <a href="#" class="nav-item" onclick="switchTab(this)">
+        <!-- 为了排版美观保留图标，暂不处理中间两个Tab的逻辑 -->
+        <a href="javascript:void(0)" class="nav-item">
             <svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>
             书库
         </a>
-        <a href="#" class="nav-item" onclick="switchTab(this)">
+        <a href="javascript:void(0)" class="nav-item">
             <svg viewBox="0 0 24 24"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>
             统计
         </a>
-        <a href="#" class="nav-item" onclick="switchTab(this)">
+        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-profile', this)">
             <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
             我的
         </a>
@@ -314,63 +431,115 @@
 </div>
 
 <script>
-    // --- PWA Service Worker 注册逻辑 ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js').then(reg => {
-                console.log('SW 注册成功', reg.scope);
-            }).catch(err => {
-                console.log('SW 注册失败', err);
-            });
-        });
-    }
-
-    // --- 页面 UI 逻辑 ---
-    function switchTab(element) {
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.remove('active');
-        });
+    // --- Tab 切换逻辑 ---
+    function switchTab(tabId, element) {
+        // 更新底部高亮状态
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
         element.classList.add('active');
+
+        // 切换内容区域
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+
+        // 如果切换到了“我的”，强制退出书架编辑模式
+        if (tabId !== 'tab-bookshelf' && isEditMode) {
+            toggleEditMode();
+        }
     }
 
-    let bookCount = 0;
-    const covers = [
-        "https://images.unsplash.com/photo-1505664194779-8beaceb93744?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
-        "https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80"
-    ];
-    const titles = ["《星际穿越指南》", "《赛博朋克：边缘法则》", "《深海的回音》"];
+    // --- 书籍数据与多选删除逻辑 ---
+    let isEditMode = false;
+    let books = []; // 存储书籍DOM节点
 
-    function generateNovel() {
-        // 1. 如果有“空空如也”的提示，就把它移除
+    // 为了你能测试多选删除，留了一个“彩蛋”：点击左上角的蓝色“书架”标题，就可以自动添加一本书。
+    function debugAddBook() {
+        const grid = document.getElementById('book-grid');
         const emptyState = document.getElementById('empty-state');
-        if (emptyState) {
-            emptyState.remove();
-        }
+        if (emptyState) emptyState.style.display = 'none';
 
-        // 2. 生成一本书
-        const randomCover = covers[Math.floor(Math.random() * covers.length)];
-        const randomTitle = titles[Math.floor(Math.random() * titles.length)];
-        
-        const newBook = document.createElement('div');
-        newBook.className = 'book-item';
-        newBook.innerHTML = `
+        const item = document.createElement('div');
+        item.className = 'book-item';
+        // 绑定点击事件：编辑模式下是选择，常规模式下是打开小说（这里为空）
+        item.onclick = function() {
+            if (isEditMode) {
+                this.classList.toggle('selected');
+                updateSelectedCount();
+            }
+        };
+
+        item.innerHTML = `
             <div class="book-cover-wrap">
-                <span class="badge-new">New</span>
-                <img src="${randomCover}" alt="封面" class="book-cover">
+                <div class="book-checkbox"></div>
+                <img src="https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=300&q=80" alt="封面" class="book-cover">
             </div>
             <div class="book-info">
-                <div class="book-title">${randomTitle} 作者：AI模型【完</div>
+                <div class="book-title">《测试小说${books.length + 1}》</div>
                 <div class="book-progress">0.0%</div>
             </div>
         `;
+        grid.insertBefore(item, grid.firstChild);
+        books.push(item);
+        updateHeaderCount();
+    }
 
-        const grid = document.getElementById('book-grid');
-        grid.insertBefore(newBook, grid.firstChild);
+    // 更新书架总数
+    function updateHeaderCount() {
+        const count = document.querySelectorAll('.book-item').length;
+        document.getElementById('book-count').innerText = count + '本';
+        if (count === 0) {
+            document.getElementById('empty-state').style.display = 'block';
+            if (isEditMode) toggleEditMode(); // 删空了自动退出编辑模式
+        }
+    }
 
-        // 3. 更新顶部书架数字
-        bookCount++;
-        document.getElementById('book-count').innerText = bookCount + '本';
+    // 切换多选编辑模式
+    function toggleEditMode() {
+        const appContainer = document.getElementById('app-container');
+        isEditMode = !isEditMode;
+
+        if (isEditMode) {
+            appContainer.classList.add('mode-edit');
+            document.getElementById('header-normal-left').style.display = 'none';
+            document.getElementById('header-normal-right').style.display = 'none';
+            document.getElementById('header-edit-left').style.display = 'flex';
+            document.getElementById('header-edit-center').style.display = 'block';
+            document.getElementById('header-edit-right').style.display = 'flex';
+            // 隐藏底部导航栏，防止编辑时误触
+            document.getElementById('bottom-nav').style.display = 'none';
+            updateSelectedCount();
+        } else {
+            appContainer.classList.remove('mode-edit');
+            document.getElementById('header-normal-left').style.display = 'flex';
+            document.getElementById('header-normal-right').style.display = 'flex';
+            document.getElementById('header-edit-left').style.display = 'none';
+            document.getElementById('header-edit-center').style.display = 'none';
+            document.getElementById('header-edit-right').style.display = 'none';
+            document.getElementById('bottom-nav').style.display = 'flex';
+            
+            // 退出时清除所有选中状态
+            document.querySelectorAll('.book-item').forEach(item => item.classList.remove('selected'));
+        }
+    }
+
+    // 更新选中项数量
+    function updateSelectedCount() {
+        const selected = document.querySelectorAll('.book-item.selected').length;
+        document.getElementById('selected-count').innerText = selected;
+    }
+
+    // 批量删除选中的书籍
+    function deleteSelected() {
+        const selectedItems = document.querySelectorAll('.book-item.selected');
+        if (selectedItems.length === 0) return;
+        
+        // 询问确认 (保留原生App风格的轻量提示，你可以接入自定义弹窗)
+        if (confirm(`确定要删除选中的 ${selectedItems.length} 本小说吗？`)) {
+            selectedItems.forEach(item => item.remove());
+            // 同步更新 books 数组
+            books = Array.from(document.querySelectorAll('.book-item'));
+            updateHeaderCount();
+            toggleEditMode(); // 删除完成后退出编辑模式
+        }
     }
 </script>
 
