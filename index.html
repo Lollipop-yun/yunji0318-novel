@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>小说生成器</title>
 
-    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#F2F2F7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -19,17 +18,18 @@
             --theme-blue: #007AFF;
             --nav-bg: rgba(255, 255, 255, 0.95);
             --danger-color: #FF3B30;
-            --border-color: #E5E5EA;
         }
 
-        /* 终极全屏防溢出/防留白方案 */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        /* 强制物理全屏，彻底修复白边 */
         html, body {
-            margin: 0; padding: 0;
             width: 100%; height: 100%;
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            margin: 0; padding: 0;
+            overflow: hidden; 
+            position: fixed; 
+            top: 0; left: 0; right: 0; bottom: 0;
             background-color: var(--bg-color);
-            overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
         }
 
@@ -37,6 +37,7 @@
             width: 100%; height: 100%;
             position: absolute; top: 0; left: 0;
             display: flex; flex-direction: column;
+            overflow: hidden;
         }
 
         /* 顶部导航栏 */
@@ -47,65 +48,67 @@
             user-select: none; flex-shrink: 0;
         }
         .header-left, .header-right { display: flex; align-items: baseline; gap: 12px; }
+        .header-center { display: none; flex: 1; text-align: center; font-size: 17px; font-weight: 600; }
         .header-title { font-size: 28px; font-weight: 700; color: #2b67d8; letter-spacing: 1px; cursor: pointer; }
         .header-count { font-size: 14px; color: var(--text-sub); }
         .header-icon { width: 22px; height: 22px; fill: currentColor; cursor: pointer; }
-        .header-center { display: none; flex: 1; text-align: center; font-size: 17px; font-weight: 600; }
         .btn-text { font-size: 16px; color: var(--theme-blue); cursor: pointer; }
-        .text-danger { color: var(--danger-color); }
 
-        /* 全局内容区 */
+        /* 内容区 */
         .tab-content {
             flex: 1; overflow-y: auto; scrollbar-width: none; 
-            padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-            display: none; position: relative; height: 100%;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+            display: none; position: relative;
         }
         .tab-content.active { display: block; }
         .tab-content::-webkit-scrollbar { display: none; }
 
-        /* ================= 1. 书架 ================= */
-        .empty-state { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 15px; letter-spacing: 1px; text-align: center; width: 100%; user-select: none; }
+        /* 书架 */
+        .empty-state { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 15px; text-align: center; width: 100%; }
         .book-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 15px; padding: 15px 20px; }
         .book-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; }
-        .book-cover-wrap { position: relative; width: 100%; aspect-ratio: 3 / 4.2; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); overflow: hidden; background-color: #fff; transition: opacity 0.2s; }
-        .book-checkbox { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); border: 1.5px solid #d1d1d6; display: none; z-index: 2; }
-        .mode-edit .book-checkbox { display: block; }
-        .mode-edit .book-item.selected .book-cover-wrap { opacity: 0.7; }
-        .mode-edit .book-item.selected .book-checkbox { background: var(--theme-blue); border-color: var(--theme-blue); }
-        .mode-edit .book-item.selected .book-checkbox::after { content: ''; position: absolute; top: 4px; left: 7.5px; width: 4px; height: 9px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .book-cover-wrap { width: 100%; aspect-ratio: 3/4.2; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); overflow: hidden; background: #fff; }
         .book-cover { width: 100%; height: 100%; object-fit: cover; }
         .book-info { margin-top: 10px; text-align: center; width: 100%; }
         .book-title { font-size: 12px; color: var(--text-main); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-        /* ================= 2. 书库 (左侧分类, 右侧设定) ================= */
-        .library-layout { display: flex; height: 100%; }
-        .lib-sidebar { 
-            width: 32%; border-right: 1px solid var(--border-color); background: #fff; 
-            overflow-y: auto; padding-top: 10px; padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px));
-        }
-        .lib-nav-item { padding: 16px 12px; font-size: 14px; color: var(--text-main); border-bottom: 1px solid #f2f2f7; cursor: pointer; transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .lib-nav-item.active { background: var(--bg-color); color: var(--theme-blue); font-weight: 600; border-right: 3px solid var(--theme-blue); }
+        /* ================= 书库页面 (左右分栏设定集) ================= */
+        #tab-library.active { display: flex; flex-direction: row; padding-bottom: 0; }
         
-        .lib-main { 
-            width: 68%; background: var(--bg-color); overflow-y: auto; 
-            padding: 15px; padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+        /* 左侧分类导航 */
+        .lib-sidebar {
+            width: 100px; background: #fff; border-right: 1px solid #e5e5ea;
+            overflow-y: auto; display: flex; flex-direction: column;
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+            flex-shrink: 0;
         }
-        .lib-form-group { margin-bottom: 20px; background: #fff; border-radius: 16px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); }
-        .lib-label { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; display: block; font-weight: 500; }
-        .lib-input, .lib-textarea { 
-            width: 100%; background: #F2F2F7; border: none; border-radius: 8px; 
-            padding: 12px; font-size: 14px; color: #333; outline: none; font-family: inherit;
+        .lib-nav-item {
+            padding: 18px 10px; font-size: 14px; color: var(--text-main);
+            text-align: center; border-bottom: 1px solid #f9f9f9; cursor: pointer;
+            transition: all 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .lib-textarea { resize: vertical; min-height: 80px; }
-        .lib-textarea.tall { min-height: 120px; }
-        .lib-cover-box { width: 80px; height: 112px; background: #F2F2F7; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; color: #999; font-size: 24px; position: relative;}
-        .lib-cover-box img { width: 100%; height: 100%; object-fit: cover; }
-        .lib-save-btn { width: 100%; background: var(--theme-blue); color: #fff; font-size: 16px; font-weight: 600; padding: 14px; border: none; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,122,255,0.3); }
-        
-        /* 隐藏的文件输入框 */
-        #hidden-file-input { display: none; }
+        .lib-nav-item.active { background: #EBF4FF; color: var(--theme-blue); font-weight: 600; position: relative; }
+        .lib-nav-item.active::before { content: ''; position: absolute; left: 0; top: 10%; height: 80%; width: 3px; background: var(--theme-blue); border-radius: 0 4px 4px 0; }
+        .lib-add-btn { color: var(--theme-blue); font-weight: 500; font-size: 13px; }
 
-        /* ================= 3. 我的 (维持不变) ================= */
+        /* 右侧内容编辑区 */
+        .lib-main {
+            flex: 1; overflow-y: auto; background: var(--bg-color); padding: 15px;
+            padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px));
+        }
+        .lib-section-title { font-size: 13px; color: var(--text-sub); margin: 15px 0 8px 5px; text-transform: uppercase; font-weight: 500; }
+        .lib-card { background: #fff; border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+        .lib-input-group { margin-bottom: 15px; }
+        .lib-input-group:last-child { margin-bottom: 0; }
+        .lib-label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; font-weight: 500; }
+        .lib-input, .lib-textarea { 
+            width: 100%; border: 1.5px solid #f0f0f0; border-radius: 8px; padding: 10px 12px; 
+            font-size: 14px; outline: none; background: #fafafa; transition: border 0.2s;
+        }
+        .lib-input:focus, .lib-textarea:focus { border-color: var(--theme-blue); background: #fff; }
+        .lib-textarea { min-height: 80px; resize: none; font-family: inherit; line-height: 1.5; }
+
+        /* ================= 我的页面 ================= */
         .my-container { padding: 10px 24px 0 26px; user-select: none; }
         .bg-watermark { font-size: 40px; font-weight: 800; color: rgba(0,0,0,0.03); margin-bottom: -15px; padding-left: 5px; }
         .diary-card { background: #ffffff; border-radius: 22px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.03); margin-bottom: 28px; }
@@ -113,388 +116,359 @@
         .user-info { display: flex; align-items: center; gap: 12px; }
         .avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; cursor: pointer; border: 1px solid #eee; }
         .user-name-box { display: flex; flex-direction: column; gap: 2px;}
-        .editable-text { outline: none; border-bottom: 1px solid transparent; transition: border 0.2s; }
-        .editable-text:focus { border-bottom: 1px dashed #ccc; cursor: text; }
+        .editable-text { outline: none; border-bottom: 1px solid transparent; }
+        .editable-text:focus { border-bottom: 1px dashed #ccc; }
         .user-name { font-size: 16px; font-weight: 600; color: #000; min-width: 50px; }
-        .user-id { font-size: 13px; color: var(--text-sub); min-width: 80px; }
+        .user-id { font-size: 13px; color: var(--text-sub); }
         .diary-date { font-size: 13px; color: var(--text-sub); text-align: right; line-height: 1.5; }
-        .diary-content { font-size: 15px; line-height: 1.8; color: #333; margin-bottom: 24px; word-break: break-all; min-height: 60px; }
-        .diary-meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #b0b0b0; }
-        .meta-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; }
-        .menu-group { background: #ffffff; border-radius: 22px; margin-bottom: 20px; position: relative; }
+        .diary-content { font-size: 15px; line-height: 1.8; color: #333; margin-bottom: 24px; min-height: 60px; }
+        
+        .menu-group { background: #ffffff; border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.03); margin-bottom: 20px; position: relative; }
         .menu-item { display: flex; align-items: center; padding: 22px 24px; border-bottom: 1px solid #f9f9f9; cursor: pointer; }
         .menu-item:last-child { border-bottom: none; }
         .menu-icon { width: 24px; height: 24px; margin-right: 18px; fill: none; stroke: #333; stroke-width: 1.8; }
-        .menu-text { flex: 1; font-family: "Courier New", Courier, monospace; font-size: 16px; color: #333; font-weight: 500;}
+        .menu-text { flex: 1; font-family: "Courier New", Courier, monospace; font-size: 16px; color: #333; }
+        .menu-arrow { width: 18px; height: 18px; fill: #ccc; }
 
-        /* ================= 底部导航栏 ================= */
+        /* 底部导航栏 */
         .bottom-nav-wrap {
             position: absolute; bottom: max(20px, env(safe-area-inset-bottom, 20px)); left: 20px; right: 20px;
             background: var(--nav-bg); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             border-radius: 40px; display: flex; justify-content: space-between; padding: 8px 10px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.06); z-index: 10; user-select: none;
         }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 0; border-radius: 30px; color: var(--text-sub); font-size: 11px; transition: all 0.3s; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px 0; border-radius: 30px; color: var(--text-sub); font-size: 11px; transition: all 0.3s ease; }
         .nav-item svg { width: 20px; height: 20px; fill: currentColor; }
         .nav-item.active { background-color: #EBF4FF; color: var(--theme-blue); }
 
-        /* ================= API 弹窗 (完美复刻原图样式) ================= */
+        /* ================= 完美复刻：API 设置弹窗 ================= */
         .modal-overlay {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-            display: flex; justify-content: center; align-items: center; z-index: 100;
-            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            z-index: 100; display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
         .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .api-modal {
-            background: #F2F2F7; width: 85%; max-width: 360px; border-radius: 20px; 
-            overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s;
-            display: flex; flex-direction: column;
-        }
-        .modal-overlay.active .api-modal { transform: scale(1); }
         
-        .api-m-title { text-align: center; font-size: 18px; font-weight: 700; color: #000; padding: 24px 0 16px; margin: 0; background: #F2F2F7; }
-        .api-m-content { padding: 0 20px 20px; background: #F2F2F7; max-height: 60vh; overflow-y: auto; }
+        .modal-card {
+            width: 88%; max-width: 360px; background: #fff; border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2); overflow: hidden;
+            transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal-overlay.active .modal-card { transform: scale(1); }
         
-        .api-m-label { font-size: 12px; color: #666; margin-bottom: 6px; display: block; font-weight: 500; }
-        .api-m-input, .api-m-select {
-            width: 100%; background: #fff; border: none; border-radius: 10px; padding: 14px 12px;
-            font-size: 14px; color: #333; margin-bottom: 16px; outline: none; appearance: none; -webkit-appearance: none;
+        .modal-header { padding: 20px 20px 10px; text-align: center; font-size: 18px; font-weight: 700; color: #000; }
+        .modal-body { padding: 10px 20px 20px; max-height: 60vh; overflow-y: auto; }
+        
+        .m-group { margin-bottom: 16px; position: relative; }
+        .m-label { display: flex; justify-content: space-between; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+        .m-input, .m-select {
+            width: 100%; border: 1.5px solid #f0f0f0; border-radius: 8px; padding: 12px 14px;
+            font-size: 14px; outline: none; background: #fff; color: #333;
+            appearance: none; -webkit-appearance: none;
         }
-        .api-m-select-wrap { position: relative; }
-        .api-m-select-wrap::after {
-            content: ''; position: absolute; right: 14px; top: 40%; width: 0; height: 0;
-            border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #999; pointer-events: none;
+        .m-input:focus, .m-select:focus { border-color: var(--theme-blue); }
+        
+        /* 下拉箭头 */
+        .select-wrapper { position: relative; }
+        .select-wrapper::after {
+            content: ''; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid #aaa; pointer-events: none;
         }
-        .api-m-btn-fetch {
-            width: 100%; background: #E5E5EA; color: var(--theme-blue); font-size: 15px; font-weight: 600;
-            border: none; border-radius: 10px; padding: 14px; cursor: pointer; margin-bottom: 16px;
-        }
-        .api-m-btn-fetch:active { background: #d1d1d6; }
 
-        /* 底部操作区 (三列) */
-        .api-m-actions { display: flex; background: #fff; border-top: 1px solid #E5E5EA; }
-        .api-m-action-btn {
-            flex: 1; padding: 18px 0; text-align: center; font-size: 16px; color: var(--theme-blue); cursor: pointer; border-right: 1px solid #E5E5EA;
+        .m-btn-fetch {
+            width: 100%; background: #f0f0f0; color: var(--theme-blue); font-weight: 600;
+            border: none; border-radius: 8px; padding: 12px; font-size: 14px; cursor: pointer;
+            margin: 5px 0 10px; transition: background 0.2s;
         }
-        .api-m-action-btn:last-child { border-right: none; }
-        .api-m-action-btn.bold { font-weight: 600; }
-        .api-m-action-btn:active { background: #f9f9f9; }
+        .m-btn-fetch:active { background: #e0e0e0; }
 
-        /* Toast */
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 15px; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none;}
+        /* 保存为新预设文字按钮 */
+        .btn-save-preset { color: var(--theme-blue); font-size: 12px; cursor: pointer; }
+
+        .modal-footer {
+            display: flex; border-top: 1px solid #f0f0f0;
+        }
+        .modal-btn {
+            flex: 1; padding: 16px 0; text-align: center; font-size: 16px;
+            cursor: pointer; background: #fff; border: none; font-weight: 500;
+        }
+        .modal-btn.cancel { color: var(--theme-blue); border-right: 1px solid #f0f0f0; }
+        .modal-btn.confirm { color: var(--theme-blue); font-weight: 600; }
+        .modal-btn:active { background: #f9f9f9; }
+
+        /* 提示框 */
+        .toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px;
+            border-radius: 10px; font-size: 15px; font-weight: 500; z-index: 200;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
         .toast.show { opacity: 1; }
     </style>
 </head>
 <body>
 
-<div class="app-container" id="app-container">
+<div class="app-container">
     
-    <!-- 头部区 -->
+    <!-- 全局头部 -->
     <header class="header" id="main-header">
-        <div class="header-left" id="header-normal-left"><h1 class="header-title" onclick="debugAddBook()">书架</h1><span class="header-count" id="book-count">0本</span></div>
-        <div class="header-right" id="header-normal-right"><svg viewBox="0 0 24 24" class="header-icon" onclick="toggleEditMode()"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></div>
-        <div class="header-left" id="header-edit-left" style="display: none;"><span class="btn-text" onclick="toggleEditMode()">取消</span></div>
-        <div class="header-center" id="header-edit-center">已选择 <span id="selected-count">0</span> 项</div>
-        <div class="header-right" id="header-edit-right" style="display: none;"><span class="btn-text text-danger" onclick="deleteSelected()">删除</span></div>
+        <div class="header-left"><h1 class="header-title">书架</h1><span class="header-count">0本</span></div>
+        <div class="header-right"><svg viewBox="0 0 24 24" class="header-icon"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></div>
     </header>
 
     <!-- Tab 1: 书架 -->
     <div class="tab-content active" id="tab-bookshelf">
-        <div id="empty-state" class="empty-state">当前书架空空如也<br><span style="font-size:12px;color:#aaa">(点击左上角"书架"可添加测试小说)</span></div>
-        <div class="book-grid" id="book-grid"></div>
+        <div class="empty-state">当前书架空空如也</div>
     </div>
 
-    <!-- Tab 2: 书库 (全新左分类右详情界面) -->
+    <!-- Tab 2: 书库 (小说设定界面) -->
     <div class="tab-content" id="tab-library">
-        <div class="library-layout">
-            <!-- 左侧分类 (小说名称) -->
-            <div class="lib-sidebar" id="lib-sidebar">
-                <!-- 动态填充 -->
+        <!-- 左侧分类列表 -->
+        <div class="lib-sidebar" id="lib-sidebar">
+            <div class="lib-nav-item active">小说一</div>
+            <div class="lib-nav-item">未命名小说</div>
+            <div class="lib-nav-item lib-add-btn" onclick="showToast('新建小说功能预留')">+ 新增设定</div>
+        </div>
+        
+        <!-- 右侧编辑器 -->
+        <div class="lib-main">
+            <div class="lib-section-title">基础信息</div>
+            <div class="lib-card">
+                <div class="lib-input-group">
+                    <label class="lib-label">小说名字</label>
+                    <input type="text" class="lib-input" value="小说一" placeholder="输入小说名字">
+                </div>
+                <div class="lib-input-group">
+                    <label class="lib-label">小说简介</label>
+                    <textarea class="lib-textarea" placeholder="描述一下故事的大纲..."></textarea>
+                </div>
             </div>
-            <!-- 右侧编辑面板 -->
-            <div class="lib-main" id="lib-main" style="display: none;">
-                <div class="lib-form-group">
-                    <span class="lib-label">小说封面</span>
-                    <div class="lib-cover-box" onclick="triggerCoverUpload()" id="lib-cover-preview">+</div>
-                    <input type="file" id="hidden-file-input" accept="image/*" onchange="handleCoverUpload(event)">
-                </div>
-                
-                <div class="lib-form-group">
-                    <span class="lib-label">小说名字</span>
-                    <input type="text" class="lib-input" id="lib-val-name" placeholder="输入小说名称...">
-                </div>
 
-                <div class="lib-form-group">
-                    <span class="lib-label">小说简介</span>
-                    <textarea class="lib-textarea" id="lib-val-desc" placeholder="输入一句话或一段简介..."></textarea>
+            <div class="lib-section-title">角色人设</div>
+            <div class="lib-card">
+                <div class="lib-input-group">
+                    <label class="lib-label">男主设定</label>
+                    <textarea class="lib-textarea" placeholder="姓名、性格、外貌、背景等"></textarea>
                 </div>
-
-                <div class="lib-form-group">
-                    <span class="lib-label">主角与配角人设</span>
-                    <textarea class="lib-textarea tall" id="lib-val-chars" placeholder="男女主外貌、性格、身世背景...&#10;配角关系网..."></textarea>
+                <div class="lib-input-group">
+                    <label class="lib-label">女主设定</label>
+                    <textarea class="lib-textarea" placeholder="姓名、性格、外貌、背景等"></textarea>
                 </div>
-
-                <div class="lib-form-group">
-                    <span class="lib-label">背景观设定</span>
-                    <textarea class="lib-textarea tall" id="lib-val-world" placeholder="世界架构、等级制度、社会规则..."></textarea>
+                <div class="lib-input-group">
+                    <label class="lib-label">重要配角</label>
+                    <textarea class="lib-textarea" placeholder="其他需要AI记住的角色设定"></textarea>
                 </div>
-
-                <div class="lib-form-group">
-                    <span class="lib-label" style="color:var(--theme-blue)">暗线与伏笔 (核心机密)</span>
-                    <textarea class="lib-textarea tall" id="lib-val-hidden" placeholder="此处内容不直接写明，仅作为后续剧情反转或伏笔的记录点..."></textarea>
-                </div>
-
-                <button class="lib-save-btn" onclick="saveCurrentNovelInfo()">保存设定</button>
             </div>
-            
-            <div id="lib-empty" style="width: 68%; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px;">
-                请在左侧选择小说进行编辑
+
+            <div class="lib-section-title">深层设定</div>
+            <div class="lib-card">
+                <div class="lib-input-group">
+                    <label class="lib-label">背景观设定 (世界观)</label>
+                    <textarea class="lib-textarea" placeholder="时代背景、力量体系、社会结构等"></textarea>
+                </div>
+                <div class="lib-input-group">
+                    <label class="lib-label">小说暗线 (伏笔/隐藏主线)</label>
+                    <textarea class="lib-textarea" placeholder="作为给AI的内部提示词，不要让AI在正文中直接点明，作为伏笔留存..."></textarea>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Tab 4: 我的 -->
+    <!-- Tab 3: 我的 -->
     <div class="tab-content" id="tab-profile">
         <div class="my-container">
             <div class="bg-watermark">icity · 我的日记</div>
             <div class="diary-card">
                 <div class="diary-header">
                     <div class="user-info">
-                        <img id="profile-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" class="avatar">
+                        <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                        <img id="profile-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" class="avatar" alt="头像">
                         <div class="user-name-box">
-                            <span class="user-name editable-text" contenteditable="true" id="edit-name">owozzz</span>
-                            <span class="user-id editable-text" contenteditable="true" id="edit-id">@mizukiz117</span>
+                            <span class="user-name editable-text" contenteditable="true" id="edit-name" spellcheck="false">owozzz</span>
+                            <span class="user-id editable-text" contenteditable="true" id="edit-id" spellcheck="false">@mizukiz117</span>
                         </div>
                     </div>
+                    <div class="diary-date" id="top-time"></div>
                 </div>
-                <div class="diary-content editable-text" contenteditable="true" id="edit-sign">-<br><br>우리의 사랑은<br>카메라에 비친 영원한 파라미터다 ·★·</div>
+                <div class="diary-content editable-text" contenteditable="true" id="edit-sign" spellcheck="false">
+                    -<br><br>우리의 사랑은<br>카메라에 비친 영원한 파라미터다 ·★·
+                </div>
             </div>
 
             <div class="menu-group">
                 <div class="menu-item" onclick="openApiModal()">
-                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                    <span class="menu-text">API配置</span>
-                    <svg style="width: 18px; fill: #ccc;" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
+                    <svg class="menu-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                    <span class="menu-text">API 配置</span>
+                    <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- 底部导航 -->
-    <div class="bottom-nav-wrap" id="bottom-nav">
-        <a href="javascript:void(0)" class="nav-item active" onclick="switchTab('tab-bookshelf', this, '书架')"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9H9V9h8v2zm0-4H9V5h8v2z"/></svg>书架</a>
-        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-library', this, '书库设定')"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>书库</a>
-        <a href="javascript:void(0)" class="nav-item"><svg viewBox="0 0 24 24"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>统计</a>
-        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-profile', this, '设置')"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>我的</a>
+    <div class="bottom-nav-wrap">
+        <a class="nav-item active" onclick="switchTab('tab-bookshelf', this, '书架')"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9H9V9h8v2zm0-4H9V5h8v2z"/></svg>书架</a>
+        <a class="nav-item" onclick="switchTab('tab-library', this, '书库设定')"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>书库</a>
+        <a class="nav-item" onclick="showToast('统计功能待开发')"><svg viewBox="0 0 24 24"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>统计</a>
+        <a class="nav-item" onclick="switchTab('tab-profile', this, '设置')"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>我的</a>
     </div>
 </div>
 
-<!-- 完全复刻原图的 API 弹窗 -->
+<!-- ================= 弹窗：API 设定 ================= -->
 <div class="modal-overlay" id="api-modal">
-    <div class="api-modal">
-        <h3 class="api-m-title">API 配置</h3>
-        <div class="api-m-content">
-            <span class="api-m-label">选择预设</span>
-            <div class="api-m-select-wrap">
-                <select class="api-m-select" id="api-preset"><option>-- 新增预设 --</option></select>
+    <div class="modal-card">
+        <div class="modal-header">API 配置</div>
+        <div class="modal-body">
+            <div class="m-group">
+                <div class="m-label">
+                    <span>选择预设</span>
+                    <span class="btn-save-preset" onclick="saveAsPreset()">+保存为新预设</span>
+                </div>
+                <div class="select-wrapper">
+                    <select class="m-select" id="api-preset" onchange="loadPreset()"></select>
+                </div>
             </div>
             
-            <span class="api-m-label">预设备注</span>
-            <input type="text" class="api-m-input" id="api-remark" placeholder="如：GPT-4 镜像通道">
+            <div class="m-group">
+                <div class="m-label">预设备注</div>
+                <input type="text" class="m-input" id="api-remark" placeholder="如：GPT-4 镜像通道">
+            </div>
             
-            <span class="api-m-label">API 地址 (Base URL)</span>
-            <input type="url" class="api-m-input" id="api-url" placeholder="https://api.example.com/v1">
+            <div class="m-group">
+                <div class="m-label">API 地址 (Base URL)</div>
+                <input type="url" class="m-input" id="api-url" placeholder="https://api.example.com/v1">
+            </div>
             
-            <span class="api-m-label">API 密钥 (API Key)</span>
-            <input type="password" class="api-m-input" id="api-key" placeholder="sk-...">
+            <div class="m-group">
+                <div class="m-label">API 密钥 (API Key)</div>
+                <input type="password" class="m-input" id="api-key" placeholder="sk-...">
+            </div>
             
-            <button class="api-m-btn-fetch" onclick="fetchModels()">拉取远端模型列表</button>
+            <button class="m-btn-fetch" onclick="fetchModels()">拉取远端模型列表</button>
             
-            <span class="api-m-label">生成模型选择</span>
-            <div class="api-m-select-wrap">
-                <select class="api-m-select" id="api-model"><option value="">请先配置地址并拉取模型...</option></select>
+            <div class="m-group">
+                <div class="m-label">生成模型选择</div>
+                <div class="select-wrapper">
+                    <select class="m-select" id="api-model">
+                        <option value="">请先配置地址并拉取模型...</option>
+                    </select>
+                </div>
             </div>
         </div>
-        
-        <!-- 三列平分按钮设计：取消 | 保存预设 | 应用配置 -->
-        <div class="api-m-actions">
-            <div class="api-m-action-btn" onclick="closeApiModal()">取消</div>
-            <div class="api-m-action-btn" onclick="savePreset()">保存预设</div>
-            <div class="api-m-action-btn bold" onclick="applyApiConfig()">应用配置</div>
+        <div class="modal-footer">
+            <button class="modal-btn cancel" onclick="closeApiModal()">取消</button>
+            <button class="modal-btn confirm" onclick="applyApiConfig()">应用配置</button>
         </div>
     </div>
 </div>
 
+<!-- 提示框 -->
 <div class="toast" id="sys-toast">提示信息</div>
 
 <script>
+    // --- Toast 提示 ---
+    let toastTimer;
     function showToast(msg) {
         const toast = document.getElementById('sys-toast');
         toast.innerText = msg; toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 2000);
+        clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    // --- 数据中心：统一管理小说列表 ---
-    let novelsData = [];
-    let currentEditId = null;
+    // --- Tab 切换及头部联动 ---
+    function switchTab(tabId, element, titleName) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        document.querySelector('.header-title').innerText = titleName;
+    }
 
+    // --- 解决头像不保存的 BUG (使用 Canvas 压缩，防止超 LocalStorage 容量) ---
     window.addEventListener('DOMContentLoaded', () => {
-        // 尝试读取本地缓存的小说
-        const stored = localStorage.getItem('novelsData');
-        if(stored) { novelsData = JSON.parse(stored); renderBookshelf(); renderLibraryList(); }
+        // 恢复文本和时间逻辑
+        ['edit-name', 'edit-id', 'edit-sign'].forEach(id => {
+            const savedText = localStorage.getItem(id);
+            if(savedText) document.getElementById(id).innerHTML = savedText;
+            document.getElementById(id).addEventListener('input', function() { localStorage.setItem(id, this.innerHTML); });
+        });
+        updateRealTime(); setInterval(updateRealTime, 1000);
+
+        // 尝试恢复头像
+        const savedAvatar = localStorage.getItem('userAvatar');
+        if (savedAvatar) document.getElementById('profile-avatar').src = savedAvatar;
+
+        initApiPresets();
     });
 
-    // --- Tab 切换 ---
-    function switchTab(tabId, element, titleName) {
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        element.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
+    // 头像选择与压缩保存
+    const avatarImg = document.getElementById('profile-avatar');
+    const avatarUpload = document.getElementById('avatarUpload');
+    avatarImg.addEventListener('click', () => avatarUpload.click());
+
+    avatarUpload.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
         
-        // 更改顶部标题
-        document.querySelector('.header-title').innerText = titleName;
-        if(tabId === 'tab-bookshelf') document.getElementById('book-count').style.display = 'inline';
-        else document.getElementById('book-count').style.display = 'none';
-
-        if(tabId === 'tab-library') renderLibraryList();
-    }
-
-    // --- 书架系统 ---
-    function debugAddBook() {
-        if(document.querySelector('.header-title').innerText !== '书架') return; // 只有在书架页点击才添加
-        const newNovel = {
-            id: Date.now().toString(),
-            name: `《未命名小说 ${novelsData.length + 1}》`,
-            cover: "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=300&q=80",
-            desc: "", chars: "", world: "", hidden: ""
-        };
-        novelsData.push(newNovel);
-        saveData(); renderBookshelf(); renderLibraryList();
-    }
-
-    function renderBookshelf() {
-        const grid = document.getElementById('book-grid');
-        grid.innerHTML = '';
-        if(novelsData.length === 0) {
-            document.getElementById('empty-state').style.display = 'block';
-            document.getElementById('book-count').innerText = '0本';
-            return;
-        }
-        document.getElementById('empty-state').style.display = 'none';
-        document.getElementById('book-count').innerText = novelsData.length + '本';
-
-        novelsData.forEach(novel => {
-            const item = document.createElement('div');
-            item.className = 'book-item';
-            item.innerHTML = `<div class="book-cover-wrap"><div class="book-checkbox"></div><img src="${novel.cover}" class="book-cover"></div><div class="book-info"><div class="book-title">${novel.name}</div></div>`;
-            grid.appendChild(item);
-        });
-    }
-
-    function saveData() { localStorage.setItem('novelsData', JSON.stringify(novelsData)); }
-
-    // --- 书库设定系统 ---
-    function renderLibraryList() {
-        const sidebar = document.getElementById('lib-sidebar');
-        sidebar.innerHTML = '';
-        novelsData.forEach(novel => {
-            const div = document.createElement('div');
-            div.className = `lib-nav-item ${currentEditId === novel.id ? 'active' : ''}`;
-            div.innerText = novel.name;
-            div.onclick = () => openLibraryDetail(novel.id);
-            sidebar.appendChild(div);
-        });
-        
-        if(novelsData.length === 0) {
-            document.getElementById('lib-main').style.display = 'none';
-            document.getElementById('lib-empty').style.display = 'flex';
-        } else if (!currentEditId) {
-            openLibraryDetail(novelsData[0].id); // 默认打开第一个
-        }
-    }
-
-    function openLibraryDetail(id) {
-        currentEditId = id;
-        renderLibraryList(); // 刷新高亮状态
-        document.getElementById('lib-empty').style.display = 'none';
-        document.getElementById('lib-main').style.display = 'block';
-        
-        const novel = novelsData.find(n => n.id === id);
-        document.getElementById('lib-cover-preview').innerHTML = `<img src="${novel.cover}">`;
-        document.getElementById('lib-val-name').value = novel.name;
-        document.getElementById('lib-val-desc').value = novel.desc || '';
-        document.getElementById('lib-val-chars').value = novel.chars || '';
-        document.getElementById('lib-val-world').value = novel.world || '';
-        document.getElementById('lib-val-hidden').value = novel.hidden || '';
-    }
-
-    function saveCurrentNovelInfo() {
-        if(!currentEditId) return;
-        const novel = novelsData.find(n => n.id === currentEditId);
-        novel.name = document.getElementById('lib-val-name').value;
-        novel.desc = document.getElementById('lib-val-desc').value;
-        novel.chars = document.getElementById('lib-val-chars').value;
-        novel.world = document.getElementById('lib-val-world').value;
-        novel.hidden = document.getElementById('lib-val-hidden').value;
-        saveData(); renderBookshelf(); renderLibraryList();
-        showToast('小说设定已保存');
-    }
-
-    // 封面上传处理
-    function triggerCoverUpload() { document.getElementById('hidden-file-input').click(); }
-    function handleCoverUpload(event) {
-        const file = event.target.files[0];
-        if(file && currentEditId) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const imgData = e.target.result;
-                const novel = novelsData.find(n => n.id === currentEditId);
-                novel.cover = imgData;
-                document.getElementById('lib-cover-preview').innerHTML = `<img src="${imgData}">`;
-                saveData(); renderBookshelf();
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const img = new Image();
+            img.onload = function() {
+                // 使用 canvas 将图片压缩到 200x200 左右，确保 100% 存入本地缓存
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 200;
+                const scaleSize = MAX_WIDTH / img.width;
+                canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                const base64Data = canvas.toDataURL('image/jpeg', 0.8);
+                avatarImg.src = base64Data;
+                
+                try {
+                    localStorage.setItem('userAvatar', base64Data);
+                    showToast('头像保存成功');
+                } catch(err) { showToast('缓存已满，保存失败'); }
             };
-            reader.readAsDataURL(file);
-        }
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    function updateRealTime() {
+        const now = new Date();
+        const year = now.getFullYear(), month = now.getMonth() + 1, date = now.getDate();
+        const day = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][now.getDay()];
+        const hours = String(now.getHours()).padStart(2, '0'), minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('top-time').innerHTML = `${month}月${date}日 · ${day}<br>${hours}:${minutes}`;
     }
 
-    // --- API 弹窗控制 ---
-    const apiModal = document.getElementById('api-modal');
-    function openApiModal() { 
-        apiModal.classList.add('active'); 
-        // 尝试恢复最后一次应用的配置
-        document.getElementById('api-remark').value = localStorage.getItem('apiRemark') || '';
+    // --- 书库侧边栏点击逻辑 ---
+    document.querySelectorAll('.lib-nav-item:not(.lib-add-btn)').forEach(item => {
+        item.addEventListener('click', function() {
+            document.querySelectorAll('.lib-nav-item').forEach(el => el.classList.remove('active'));
+            this.classList.add('active');
+            // 联动更改右侧表单里的标题名字
+            document.querySelector('.lib-input').value = this.innerText;
+        });
+    });
+
+    // --- API 配置预设逻辑 ---
+    let presets = [];
+    
+    function initApiPresets() {
+        const stored = localStorage.getItem('apiPresets');
+        if(stored) presets = JSON.parse(stored);
+        
+        // 初始填充下拉框
+        renderPresetSelect();
+        
+        // 读取当前正在使用的配置
         document.getElementById('api-url').value = localStorage.getItem('apiUrl') || '';
         document.getElementById('api-key').value = localStorage.getItem('apiKey') || '';
+        document.getElementById('api-remark').value = localStorage.getItem('apiRemark') || '';
         const savedModel = localStorage.getItem('apiModel');
-        if(savedModel) document.getElementById('api-model').innerHTML = `<option>${savedModel}</option>`;
-    }
-    function closeApiModal() { apiModal.classList.remove('active'); }
-
-    function fetchModels() {
-        let url = document.getElementById('api-url').value.trim();
-        if(!url) { showToast('请先填写 API 地址'); return; }
-        showToast('模拟获取中...');
-        setTimeout(() => {
-            const select = document.getElementById('api-model');
-            select.innerHTML = '<option>gpt-3.5-turbo</option><option>gpt-4o</option><option>claude-3-opus</option>';
-            showToast('模型拉取成功');
-        }, 800);
-    }
-
-    function savePreset() {
-        // 在这里你可以加入数组存多个预设的逻辑，演示先给提示
-        showToast('当前通道已保存至预设列表');
-    }
-
-    function applyApiConfig() {
-        localStorage.setItem('apiRemark', document.getElementById('api-remark').value);
-        localStorage.setItem('apiUrl', document.getElementById('api-url').value);
-        localStorage.setItem('apiKey', document.getElementById('api-key').value);
-        localStorage.setItem('apiModel', document.getElementById('api-model').value);
-        showToast('配置已全局应用');
-        setTimeout(closeApiModal, 500);
-    }
-</script>
-
-</body>
-</html>
+        if (savedModel) {
+            document.getElementById('api-model').innerHTML = `<option value="${savedModel}">${savedModel}</option>`;
+        }
