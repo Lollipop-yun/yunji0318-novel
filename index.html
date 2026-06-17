@@ -2,15 +2,26 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>小说生成器UI</title>
+    <!-- PWA 和移动端视口配置 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>小说生成器</title>
+
+    <!-- PWA 核心配置 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#F2F2F7">
+    
+    <!-- iOS PWA 专属全屏与图标配置 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="小说生成">
+    <link rel="apple-touch-icon" href="https://pic1.imgdb.cn/item/6a322e1e81fd5b0737952d0b.png">
+
     <style>
-        /* CSS 变量：定义 iOS 灰白 Ins 风颜色 */
         :root {
-            --bg-color: #F2F2F7; /* iOS 经典浅灰背景 */
+            --bg-color: #F2F2F7;
             --text-main: #1D1D1F;
             --text-sub: #86868B;
-            --theme-blue: #007AFF; /* 苹果蓝 */
+            --theme-blue: #007AFF;
             --nav-bg: rgba(255, 255, 255, 0.95);
             --red-badge: #FF3B30;
         }
@@ -20,20 +31,22 @@
             padding: 0;
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
+            /* 禁用长按选中文本，让它更像原生 App */
+            user-select: none; 
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-            background-color: #e5e5e5; /* 桌面端外围背景 */
+            background-color: #e5e5e5;
             display: flex;
             justify-content: center;
             height: 100vh;
         }
 
-        /* 模拟手机屏幕容器 */
+        /* 模拟屏幕容器，如果被安装为桌面App，它会自动铺满屏幕 */
         .app-container {
             width: 100%;
-            max-width: 414px; /* 模拟 iPhone 宽度 */
+            max-width: 414px;
             height: 100%;
             background-color: var(--bg-color);
             position: relative;
@@ -43,12 +56,12 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
 
-        /* 顶部导航栏 */
+        /* 顶部导航栏，预留刘海屏(safe-area)的距离 */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 24px 20px 10px;
+            padding: calc(24px + env(safe-area-inset-top)) 20px 10px;
         }
 
         .header-left {
@@ -60,7 +73,7 @@
         .header-title {
             font-size: 28px;
             font-weight: 700;
-            color: #2b67d8; /* 对应图片中的蓝色书架字样 */
+            color: #2b67d8;
             letter-spacing: 1px;
         }
 
@@ -91,16 +104,29 @@
             cursor: pointer;
         }
 
-        /* 主体内容区（书架网格） */
+        /* 主体内容区 */
         .content {
             flex: 1;
             padding: 15px 20px;
             overflow-y: auto;
-            /* 隐藏滚动条但保留滚动功能 */
             scrollbar-width: none; 
-            padding-bottom: 100px; /* 留出底部导航栏的空间 */
+            padding-bottom: 100px;
+            position: relative; /* 为空状态绝对定位做准备 */
         }
         .content::-webkit-scrollbar { display: none; }
+
+        /* 书架空空如也 状态提示 */
+        .empty-state {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--text-sub);
+            font-size: 15px;
+            letter-spacing: 1px;
+            text-align: center;
+            width: 100%;
+        }
 
         .book-grid {
             display: grid;
@@ -108,15 +134,20 @@
             gap: 20px 15px;
         }
 
-        /* 单本书籍卡片 */
         .book-item {
             display: flex;
             flex-direction: column;
             align-items: center;
             cursor: pointer;
             transition: transform 0.2s;
+            animation: fadeIn 0.4s ease;
         }
         .book-item:active { transform: scale(0.95); }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
         .book-cover-wrap {
             position: relative;
@@ -171,17 +202,18 @@
         /* 底部悬浮导航栏 */
         .bottom-nav-wrap {
             position: absolute;
-            bottom: 25px;
+            bottom: calc(25px + env(safe-area-inset-bottom));
             left: 20px;
             right: 20px;
             background: var(--nav-bg);
-            backdrop-filter: blur(15px); /* iOS毛玻璃效果 */
+            backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             border-radius: 40px;
             display: flex;
             justify-content: space-between;
             padding: 8px 10px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+            z-index: 10;
         }
 
         .nav-item {
@@ -197,7 +229,6 @@
             text-decoration: none;
             font-size: 11px;
             transition: all 0.3s ease;
-            cursor: pointer;
         }
 
         .nav-item svg {
@@ -206,16 +237,14 @@
             fill: currentColor;
         }
 
-        /* 当前激活状态 */
         .nav-item.active {
-            background-color: #EBF4FF; /* 浅蓝色底 */
+            background-color: #EBF4FF;
             color: var(--theme-blue);
         }
 
-        /* 模拟生成按钮 (用于演示) */
         .generate-btn {
             position: absolute;
-            bottom: 100px;
+            bottom: calc(100px + env(safe-area-inset-bottom));
             right: 20px;
             background: var(--theme-blue);
             color: white;
@@ -226,6 +255,7 @@
             font-weight: 600;
             box-shadow: 0 4px 12px rgba(0, 122, 255, 0.4);
             cursor: pointer;
+            z-index: 9;
         }
         .generate-btn:active { background: #005ecb; }
     </style>
@@ -234,46 +264,34 @@
 
 <div class="app-container">
     
-    <!-- 顶部 -->
     <header class="header">
         <div class="header-left">
             <h1 class="header-title">书架</h1>
-            <span class="header-count" id="book-count">1本</span>
+            <!-- 初始为 0 本 -->
+            <span class="header-count" id="book-count">0本</span>
         </div>
         <div class="header-right">
             <div class="dropdown">
                 全部
                 <svg viewBox="0 0 24 24" class="header-icon" style="width:14px;height:14px;"><path d="M7 10l5 5 5-5z"/></svg>
             </div>
-            <!-- 搜索图标 -->
             <svg viewBox="0 0 24 24" class="header-icon"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            <!-- 更多图标 -->
             <svg viewBox="0 0 24 24" class="header-icon"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
         </div>
     </header>
 
-    <!-- 书架内容 -->
     <div class="content">
+        <!-- 初始空状态文字 -->
+        <div id="empty-state" class="empty-state">当前书架空空如也</div>
+        
         <div class="book-grid" id="book-grid">
-            <!-- 默认已有的一本书 -->
-            <div class="book-item">
-                <div class="book-cover-wrap">
-                    <span class="badge-new">New</span>
-                    <!-- 使用图片占位符模拟宫崎骏风格封面 -->
-                    <img src="https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80" alt="封面" class="book-cover">
-                </div>
-                <div class="book-info">
-                    <div class="book-title">《是心跳说谎》作者：唧唧的猫【完</div>
-                    <div class="book-progress">0.0%</div>
-                </div>
-            </div>
+            <!-- 书籍将被动态插入到这里 -->
         </div>
     </div>
 
-    <!-- 演示用：一键生成小说按钮 -->
+    <!-- 演示用生成按钮 -->
     <button class="generate-btn" onclick="generateNovel()">+ 模拟AI生成</button>
 
-    <!-- 底部悬浮导航 -->
     <div class="bottom-nav-wrap">
         <a href="#" class="nav-item active" onclick="switchTab(this)">
             <svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9H9V9h8v2zm0-4H9V5h8v2z"/></svg>
@@ -296,7 +314,18 @@
 </div>
 
 <script>
-    // 底部导航栏切换交互
+    // --- PWA Service Worker 注册逻辑 ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js').then(reg => {
+                console.log('SW 注册成功', reg.scope);
+            }).catch(err => {
+                console.log('SW 注册失败', err);
+            });
+        });
+    }
+
+    // --- 页面 UI 逻辑 ---
     function switchTab(element) {
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
@@ -304,8 +333,7 @@
         element.classList.add('active');
     }
 
-    // 模拟 AI 生成小说的交互功能
-    let bookCount = 1;
+    let bookCount = 0;
     const covers = [
         "https://images.unsplash.com/photo-1505664194779-8beaceb93744?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
         "https://images.unsplash.com/photo-1519681393784-d120267933ba?ixlib=rb-4.0.3&auto=format&fit=crop&w=300&q=80",
@@ -314,16 +342,21 @@
     const titles = ["《星际穿越指南》", "《赛博朋克：边缘法则》", "《深海的回音》"];
 
     function generateNovel() {
-        // 随机获取数据
+        // 1. 如果有“空空如也”的提示，就把它移除
+        const emptyState = document.getElementById('empty-state');
+        if (emptyState) {
+            emptyState.remove();
+        }
+
+        // 2. 生成一本书
         const randomCover = covers[Math.floor(Math.random() * covers.length)];
         const randomTitle = titles[Math.floor(Math.random() * titles.length)];
         
-        // 创建新的 HTML 节点
         const newBook = document.createElement('div');
         newBook.className = 'book-item';
         newBook.innerHTML = `
             <div class="book-cover-wrap">
-                <span class="badge-new">AI生成</span>
+                <span class="badge-new">New</span>
                 <img src="${randomCover}" alt="封面" class="book-cover">
             </div>
             <div class="book-info">
@@ -332,11 +365,10 @@
             </div>
         `;
 
-        // 插入到网格中
         const grid = document.getElementById('book-grid');
         grid.insertBefore(newBook, grid.firstChild);
 
-        // 更新数量
+        // 3. 更新顶部书架数字
         bookCount++;
         document.getElementById('book-count').innerText = bookCount + '本';
     }
