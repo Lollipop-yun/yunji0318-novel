@@ -1,0 +1,17 @@
+{
+  "name": "小说生成器",
+  "short_name": "小说生成",
+  "description": "一个极简风的小说生成App",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#F2F2F7",
+  "icons": [
+    {
+      "src": "https://pic1.imgdb.cn/item/6a322e1e81fd5b0737952d0b.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
