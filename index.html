@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 强制禁止缩放和视口适配，配合固定定位实现绝对全屏 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>小说生成器</title>
 
-    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#F2F2F7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -25,36 +25,38 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-        /* 彻底修复全屏留白：固定视口死锁 */
+        /* 绝对锁定视口，彻底解决全屏白边和回弹 BUG */
         html, body {
             width: 100%; height: 100%;
             overflow: hidden;
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            overscroll-behavior: none; 
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
         }
 
         .app-container {
             width: 100%; height: 100%; background-color: var(--bg-color);
-            position: relative; display: flex; flex-direction: column;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column;
         }
 
-        /* 顶部导航栏 */
+        /* 全局顶部导航栏 */
         .header {
             display: flex; justify-content: space-between; align-items: center;
             padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 10px;
             min-height: calc(64px + env(safe-area-inset-top, 0px));
-            user-select: none; flex-shrink: 0;
+            user-select: none;
         }
         .header-left, .header-right { display: flex; align-items: baseline; gap: 12px; }
         .header-center { display: none; flex: 1; text-align: center; font-size: 17px; font-weight: 600; }
-        .header-title { font-size: 28px; font-weight: 700; color: #2b67d8; letter-spacing: 1px; cursor: pointer; }
+        .header-title { font-size: 28px; font-weight: 700; color: #2b67d8; letter-spacing: 1px; cursor: pointer; transition: color 0.3s;}
         .header-count { font-size: 14px; color: var(--text-sub); }
         .header-icon { width: 22px; height: 22px; fill: currentColor; cursor: pointer; }
         .btn-text { font-size: 16px; color: var(--theme-blue); cursor: pointer; }
         .text-danger { color: var(--danger-color); }
 
-        /* Tab 内容区 */
+        /* 通用 Tab 容器 */
         .tab-content {
             flex: 1; overflow-y: auto; scrollbar-width: none; 
             padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
@@ -63,11 +65,11 @@
         .tab-content.active { display: block; }
         .tab-content::-webkit-scrollbar { display: none; }
 
-        /* ==== 书架区 ==== */
+        /* ================= 书架区 ================= */
         .empty-state { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); color: var(--text-sub); font-size: 15px; letter-spacing: 1px; text-align: center; width: 100%; user-select: none; }
         .book-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px 15px; padding: 15px 20px; }
         .book-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; position: relative; }
-        .book-cover-wrap { position: relative; width: 100%; aspect-ratio: 3 / 4.2; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); overflow: hidden; background-color: #e5e5ea; transition: opacity 0.2s; }
+        .book-cover-wrap { position: relative; width: 100%; aspect-ratio: 3 / 4.2; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); overflow: hidden; background-color: #fff; transition: opacity 0.2s; }
         .book-checkbox { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); border: 1.5px solid #d1d1d6; display: none; z-index: 2; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .mode-edit .book-checkbox { display: block; }
         .mode-edit .book-item.selected .book-cover-wrap { opacity: 0.7; }
@@ -78,24 +80,26 @@
         .book-title { font-size: 12px; color: var(--text-main); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .book-progress { font-size: 11px; color: var(--text-sub); margin-top: 4px; }
 
-        /* ==== 书库分类编辑区 ==== */
-        .library-container { display: flex; height: 100%; background: #fff; border-top: 1px solid #e5e5ea; }
-        /* 左侧边栏 */
-        .lib-sidebar { width: 110px; background: #F2F2F7; overflow-y: auto; border-right: 1px solid #e5e5ea; flex-shrink: 0; padding-bottom: 120px;}
-        .lib-nav-item { padding: 18px 10px; font-size: 13px; color: var(--text-sub); text-align: center; border-bottom: 1px solid #e5e5ea; cursor: pointer; transition: all 0.2s; word-break: break-all;}
-        .lib-nav-item.active { background: #fff; color: var(--theme-blue); font-weight: 600; border-left: 3px solid var(--theme-blue); }
-        /* 右侧编辑区 */
-        .lib-editor { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 150px; background: #fff; display: none; }
-        .lib-editor.active { display: block; }
-        .form-group { margin-bottom: 22px; }
-        .form-label { display: block; font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
-        .form-input, .form-textarea { width: 100%; background: #F2F2F7; border: none; border-radius: 10px; padding: 14px; font-size: 14px; color: #333; outline: none; }
-        .form-textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
-        .form-input::placeholder, .form-textarea::placeholder { color: #a0a0a0; }
+        /* ================= 书库区 (左右分栏设定界面) ================= */
+        .library-container { display: flex; height: 100%; border-top: 1px solid rgba(0,0,0,0.05); }
+        .lib-sidebar { width: 110px; background: #f2f2f7; border-right: 1px solid rgba(0,0,0,0.05); overflow-y: auto; padding-bottom: 120px; }
+        .lib-tab { padding: 18px 12px; text-align: center; font-size: 14px; color: #888; border-bottom: 1px solid rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s; word-break: break-all;}
+        .lib-tab.active { background: #fff; color: var(--theme-blue); font-weight: 600; position: relative; }
+        .lib-tab.active::before { content: ''; position: absolute; left: 0; top: 10%; height: 80%; width: 4px; background: var(--theme-blue); border-radius: 0 4px 4px 0; }
+        
+        .lib-content { flex: 1; padding: 20px 20px 120px 20px; overflow-y: auto; background: #fff; }
+        .lib-empty { text-align: center; color: var(--text-sub); margin-top: 50px; font-size: 14px; }
+        
+        .lib-field { margin-bottom: 20px; }
+        .lib-label { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 8px; display: block; letter-spacing: 0.5px;}
+        .lib-input, .lib-textarea { width: 100%; background: #f2f2f7; border: 1px solid transparent; border-radius: 10px; padding: 12px; font-size: 14px; outline: none; transition: background 0.2s; font-family: inherit; }
+        .lib-input:focus, .lib-textarea:focus { background: #fff; border-color: var(--theme-blue); }
+        .lib-textarea { min-height: 100px; resize: none; line-height: 1.5; }
 
-        /* ==== 我的页面 ==== */
+        /* ================= 我的页面 ================= */
         .my-container { padding: 10px 24px 0 26px; user-select: none; }
         .bg-watermark { font-size: 40px; font-weight: 800; color: rgba(0,0,0,0.03); margin-bottom: -15px; padding-left: 5px; }
+
         .diary-card { background: #ffffff; border-radius: 22px; padding: 24px; box-shadow: 0 8px 24px rgba(0,0,0,0.03); margin-bottom: 28px; position: relative; }
         .diary-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .user-info { display: flex; align-items: center; gap: 12px; }
@@ -112,7 +116,10 @@
         .meta-right { display: flex; align-items: center; gap: 14px; }
         .meta-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
         .meta-item { display: flex; align-items: center; gap: 5px; }
+
         .menu-group { background: #ffffff; border-radius: 22px; box-shadow: 0 8px 24px rgba(0,0,0,0.03); margin-bottom: 20px; position: relative; }
+        .menu-badge-online { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: #f2f2f7; padding: 2px 10px; border-radius: 12px; font-size: 11px; color: #888; display: flex; align-items: center; gap: 4px; }
+        .menu-badge-online::before { content: ''; width: 5px; height: 5px; background: #c5c5c5; border-radius: 50%; }
         .menu-item { display: flex; align-items: center; padding: 22px 24px; border-bottom: 1px solid #f9f9f9; cursor: pointer; transition: background 0.2s; }
         .menu-item:active { background: #f5f5f5; border-radius: inherit; }
         .menu-item:last-child { border-bottom: none; }
@@ -131,55 +138,72 @@
         .nav-item svg { width: 20px; height: 20px; fill: currentColor; }
         .nav-item.active { background-color: #EBF4FF; color: var(--theme-blue); }
 
-        /* ==== API 配置中心居中弹窗 (根据截图复刻) ==== */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
-            z-index: 100; display: flex; justify-content: center; align-items: center;
+        /* ================= 二级页面：API设置 ================= */
+        .sub-page {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-color); z-index: 100; display: flex; flex-direction: column;
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .sub-page.active { transform: translateX(0); }
+        .sp-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: calc(15px + env(safe-area-inset-top, 0px)) 20px 15px;
+            background: #fff; font-size: 17px; font-weight: 600; box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+        }
+        .sp-back { display: flex; align-items: center; color: var(--theme-blue); font-weight: 400; cursor: pointer; gap: 4px; }
+        .sp-back svg { width: 20px; height: 20px; fill: currentColor; }
+        .sp-save { color: var(--theme-blue); cursor: pointer; font-weight: 600;}
+        
+        .sp-content { flex: 1; overflow-y: auto; padding: 20px; }
+        .ios-group { background: #fff; border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+        .ios-item { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid #f0f0f0; }
+        .ios-item:last-child { border-bottom: none; }
+        .ios-label { width: 90px; font-size: 16px; color: #000; }
+        .ios-input { flex: 1; border: none; outline: none; font-size: 16px; color: #666; text-align: right; background: transparent; }
+        
+        .ios-btn {
+            display: block; width: 100%; padding: 16px; text-align: center; background: #fff;
+            color: var(--theme-blue); font-size: 16px; font-weight: 600; border: none;
+            border-radius: 12px; cursor: pointer; margin-bottom: 24px; transition: background 0.2s;
+        }
+        .ios-btn:active { background: #f0f0f0; }
+
+        .ios-select-wrapper { position: relative; flex: 1; display: flex; justify-content: flex-end; align-items: center; }
+        .ios-select { 
+            appearance: none; -webkit-appearance: none; background: transparent; border: none; outline: none;
+            font-size: 16px; color: var(--theme-blue); text-align: right; direction: rtl; width: 100%; padding-right: 20px;
+        }
+        .ios-select-arrow { position: absolute; right: 0; width: 14px; height: 14px; fill: #ccc; pointer-events: none; }
+
+        /* ================= 原生 iOS 风格自定义弹窗 ================= */
+        .ios-modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+        }
+        .ios-modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .ios-modal {
+            width: 270px; background: rgba(242,242,242,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; transform: scale(1.1); transition: transform 0.2s ease;
+        }
+        .ios-modal-overlay.active .ios-modal { transform: scale(1); }
+        .ios-modal-title { font-size: 17px; font-weight: 600; text-align: center; padding: 20px 16px 15px; color: #000; }
+        .ios-modal-input {
+            margin: 0 16px 20px; padding: 6px 10px; background: #fff; border: 1px solid rgba(0,0,0,0.2);
+            border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;
+        }
+        .ios-modal-actions { display: flex; border-top: 1px solid rgba(0,0,0,0.1); }
+        .ios-modal-btn { flex: 1; padding: 12px; text-align: center; font-size: 17px; color: var(--theme-blue); cursor: pointer; user-select: none; }
+        .ios-modal-btn.cancel { border-right: 1px solid rgba(0,0,0,0.1); font-weight: 400; }
+        .ios-modal-btn.confirm { font-weight: 600; }
+
+        /* 自定义 Toast 提示框 */
+        .toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px;
+            border-radius: 10px; font-size: 15px; font-weight: 500; z-index: 2000;
             opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
         }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .api-modal {
-            background: #fff; width: 85%; max-width: 360px; border-radius: 20px;
-            display: flex; flex-direction: column; overflow: hidden;
-            transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-        .modal-overlay.active .api-modal { transform: translateY(0); }
-        .am-header { padding: 20px; text-align: center; font-size: 18px; font-weight: 700; color: #000; }
-        .am-body { padding: 0 20px 20px; overflow-y: auto; max-height: 60vh; }
-        
-        .am-label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
-        .am-select-wrap { position: relative; margin-bottom: 16px; }
-        .am-select, .am-input {
-            width: 100%; background: #F2F2F7; border: none; border-radius: 8px;
-            padding: 12px 14px; font-size: 14px; color: #333; outline: none; appearance: none;
-        }
-        .am-select-arrow { position: absolute; right: 12px; top: 12px; width: 14px; height: 14px; fill: #999; pointer-events: none; }
-        .am-input { margin-bottom: 16px; }
-        .am-input::placeholder { color: #b0b0b0; }
-        
-        .am-btn-fetch {
-            width: 100%; background: #e5e5ea; color: var(--theme-blue); font-size: 14px;
-            font-weight: 600; text-align: center; padding: 12px; border: none; border-radius: 8px;
-            cursor: pointer; margin-bottom: 16px;
-        }
-        .am-btn-fetch:active { background: #d1d1d6; }
-        
-        .am-save-preset { text-align: right; margin-top: -6px; margin-bottom: 10px; }
-        .am-save-preset span { font-size: 12px; color: var(--theme-blue); font-weight: 600; cursor: pointer; }
-
-        .am-footer {
-            display: flex; border-top: 1px solid #e5e5ea;
-        }
-        .am-btn {
-            flex: 1; padding: 16px; text-align: center; font-size: 16px; font-weight: 600;
-            color: var(--theme-blue); cursor: pointer; background: #fff; border: none; outline: none;
-        }
-        .am-btn.cancel { color: #888; border-right: 1px solid #e5e5ea; font-weight: 500; }
-        .am-btn:active { background: #f9f9f9; }
-
-        /* Toast */
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.75); color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 15px; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
         .toast.show { opacity: 1; }
     </style>
 </head>
@@ -187,11 +211,18 @@
 
 <div class="app-container" id="app-container">
     
-    <!-- 头部区 -->
+    <!-- 全局头部 -->
     <header class="header">
-        <div class="header-left" id="header-normal-left"><h1 class="header-title" onclick="debugAddBook()">书架</h1><span class="header-count" id="book-count">0本</span></div>
-        <div class="header-right" id="header-normal-right"><svg viewBox="0 0 24 24" class="header-icon" onclick="toggleEditMode()"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></div>
+        <div class="header-left" id="header-normal-left">
+            <h1 class="header-title" id="main-header-title" onclick="debugAddBook()">书架</h1>
+            <span class="header-count" id="book-count">0本</span>
+        </div>
+        <div class="header-right" id="header-normal-right">
+            <!-- 初始为书架的多选图标 -->
+            <svg viewBox="0 0 24 24" class="header-icon" onclick="toggleEditMode()"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+        </div>
         
+        <!-- 书架编辑模式下的头部 -->
         <div class="header-left" id="header-edit-left" style="display: none;"><span class="btn-text" onclick="toggleEditMode()">取消</span></div>
         <div class="header-center" id="header-edit-center">已选择 <span id="selected-count">0</span> 项</div>
         <div class="header-right" id="header-edit-right" style="display: none;"><span class="btn-text text-danger" onclick="deleteSelected()">删除</span></div>
@@ -199,49 +230,21 @@
 
     <!-- Tab 1: 书架 -->
     <div class="tab-content active" id="tab-bookshelf">
-        <div id="empty-state" class="empty-state">当前书架空空如也<br><span style="font-size:12px;color:#aaa;margin-top:5px;display:block;">(点击左上角蓝色标题添加测试书籍)</span></div>
+        <div id="empty-state" class="empty-state">当前书架空空如也</div>
         <div class="book-grid" id="book-grid"></div>
     </div>
 
-    <!-- Tab 2: 书库 (独立编辑界面) -->
+    <!-- Tab 2: 书库 (新增分栏编辑器) -->
     <div class="tab-content" id="tab-library">
         <div class="library-container">
-            <!-- 左侧分类导航 -->
             <div class="lib-sidebar" id="lib-sidebar">
-                <!-- 动态生成 -->
+                <!-- 分类（小说名）由 JS 生成 -->
             </div>
-            <!-- 右侧精细化编辑 -->
-            <div class="lib-editor" id="lib-editor">
-                <div class="form-group">
-                    <span class="form-label">小说名字</span>
-                    <input type="text" class="form-input" id="lib-title" placeholder="输入书名" oninput="saveCurrentBook()">
-                </div>
-                <div class="form-group">
-                    <span class="form-label">封面图片链接</span>
-                    <input type="text" class="form-input" id="lib-cover" placeholder="http://..." oninput="saveCurrentBook()">
-                </div>
-                <div class="form-group">
-                    <span class="form-label">小说简介</span>
-                    <textarea class="form-textarea" id="lib-summary" placeholder="简述故事的大纲脉络..." oninput="saveCurrentBook()"></textarea>
-                </div>
-                <div class="form-group">
-                    <span class="form-label">人设 (男/女主、配角)</span>
-                    <textarea class="form-textarea" id="lib-characters" placeholder="例如：男主性格清冷腹黑..." oninput="saveCurrentBook()"></textarea>
-                </div>
-                <div class="form-group">
-                    <span class="form-label">世界观与背景设定</span>
-                    <textarea class="form-textarea" id="lib-world" placeholder="时代背景、特殊规则、地图设定..." oninput="saveCurrentBook()"></textarea>
-                </div>
-                <div class="form-group">
-                    <span class="form-label">暗线 / 伏笔 (不直接写出)</span>
-                    <textarea class="form-textarea" id="lib-hidden" placeholder="埋在文中的伏笔，供后期点明..." oninput="saveCurrentBook()"></textarea>
-                </div>
+            <div class="lib-content" id="lib-content">
+                <div class="lib-empty">点击左侧分类或右上角“+”添加小说设定</div>
             </div>
         </div>
     </div>
-
-    <!-- Tab 3: 统计 (留空占位) -->
-    <div class="tab-content" id="tab-stats"></div>
 
     <!-- Tab 4: 我的 -->
     <div class="tab-content" id="tab-profile">
@@ -275,68 +278,89 @@
             </div>
 
             <div class="menu-group" style="margin-top: 35px;">
-                <div class="menu-item" onclick="openApiModal()">
-                    <svg class="menu-icon" viewBox="0 0 24 24" style="stroke-width: 2;">
-                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                    </svg>
+                <div class="menu-badge-online">Online</div>
+                <div class="menu-item" onclick="openApiPage()">
+                    <svg class="menu-icon" viewBox="0 0 24 24" style="stroke-width: 2;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                     <span class="menu-text">API配置</span>
                     <svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg>
                 </div>
+            </div>
+            <!-- 其他凑数菜单 -->
+            <div class="menu-group" style="margin-top: 25px;">
+                <div class="menu-badge-online">Online</div>
+                <div class="menu-item"><svg class="menu-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span class="menu-text">{ ≡···collection }</span><svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg></div>
+                <div class="menu-item"><svg class="menu-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span class="menu-text">「#、 」 pyq</span><svg class="menu-arrow" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6v12z"/></svg></div>
             </div>
         </div>
     </div>
 
     <!-- 底部导航 -->
     <div class="bottom-nav-wrap" id="bottom-nav">
-        <a href="javascript:void(0)" class="nav-item active" onclick="switchTab('tab-bookshelf', this, '书架')"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9H9V9h8v2zm0-4H9V5h8v2z"/></svg>书架</a>
-        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-library', this, '书库')"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>书库</a>
-        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-stats', this, '统计')"><svg viewBox="0 0 24 24"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>统计</a>
-        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-profile', this, '我的')"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>我的</a>
+        <a href="javascript:void(0)" class="nav-item active" onclick="switchTab('tab-bookshelf', this)"><svg viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-3 9H9V9h8v2zm0-4H9V5h8v2z"/></svg>书架</a>
+        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-library', this)"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4zm0 4h16v2H4z"/></svg>书库</a>
+        <a href="javascript:void(0)" class="nav-item"><svg viewBox="0 0 24 24"><path d="M10 20h4V4h-4v16zm-6 0h4v-8H4v8zM16 9v11h4V9h-4z"/></svg>统计</a>
+        <a href="javascript:void(0)" class="nav-item" onclick="switchTab('tab-profile', this)"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>我的</a>
+    </div>
+
+</div>
+
+<!-- 全屏二级页面：API设置 -->
+<div class="sub-page" id="page-api">
+    <div class="sp-header">
+        <div class="sp-back" onclick="closeApiPage()"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg> 返回</div>
+        <span>应用配置</span>
+        <div class="sp-save" onclick="applyApiConfig()">应用</div>
+    </div>
+    <div class="sp-content">
+        <!-- 预设选择 -->
+        <div class="ios-group">
+            <div class="ios-item">
+                <span class="ios-label">选择预设</span>
+                <div class="ios-select-wrapper">
+                    <select class="ios-select" id="api-preset-select" onchange="loadPreset()"><option value="">-- 手动填写 --</option></select>
+                    <svg class="ios-select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="ios-group">
+            <div class="ios-item"><span class="ios-label">反代地址</span><input type="url" class="ios-input" id="api-url" placeholder="https://api.openai.com/v1"></div>
+            <div class="ios-item"><span class="ios-label">API 密钥</span><input type="password" class="ios-input" id="api-key" placeholder="sk-..."></div>
+        </div>
+
+        <button class="ios-btn" onclick="fetchModels()">手动拉取模型列表</button>
+
+        <div class="ios-group" id="model-group" style="display: none;">
+            <div class="ios-item">
+                <span class="ios-label">选择模型</span>
+                <div class="ios-select-wrapper">
+                    <select class="ios-select" id="api-model"></select>
+                    <svg class="ios-select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- 增加保存为新预设的按钮 -->
+        <button class="ios-btn" style="color: #000;" onclick="triggerSavePreset()">保存为新预设</button>
     </div>
 </div>
 
-<!-- API 配置悬浮弹窗 (复刻图三) -->
-<div class="modal-overlay" id="api-modal-overlay">
-    <div class="api-modal">
-        <div class="am-header">API 配置</div>
-        <div class="am-body">
-            <span class="am-label">选择预设</span>
-            <div class="am-select-wrap">
-                <select class="am-select" id="api-preset-select" onchange="onPresetChange()"><option value="new">-- 新增预设 --</option></select>
-                <svg class="am-select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
-            </div>
-            
-            <span class="am-label">预设备注</span>
-            <input type="text" class="am-input" id="api-remark" placeholder="如：GPT-4 镜像通道">
-            
-            <span class="am-label">API 地址 (Base URL)</span>
-            <input type="text" class="am-input" id="api-url" placeholder="https://api.example.com/v1">
-            
-            <span class="am-label">API 密钥 (API Key)</span>
-            <input type="password" class="am-input" id="api-key" placeholder="sk-...">
-            
-            <div class="am-save-preset"><span onclick="saveAsPreset()">+ 保存为新预设</span></div>
-            
-            <button class="am-btn-fetch" onclick="fetchModels()">拉取远端模型列表</button>
-            
-            <span class="am-label">生成模型选择</span>
-            <div class="am-select-wrap" style="margin-bottom:0;">
-                <select class="am-select" id="api-model"><option value="">请先配置地址并拉取模型...</option></select>
-                <svg class="am-select-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5H7z"/></svg>
-            </div>
-        </div>
-        <div class="am-footer">
-            <button class="am-btn cancel" onclick="closeApiModal()">取消</button>
-            <button class="am-btn apply" onclick="applyApiConfig()">应用配置</button>
+<!-- 原生 iOS 风格自定义输入弹窗 -->
+<div class="ios-modal-overlay" id="ios-prompt">
+    <div class="ios-modal">
+        <div class="ios-modal-title" id="ios-prompt-title">输入标题</div>
+        <input type="text" class="ios-modal-input" id="ios-prompt-input" placeholder="请输入...">
+        <div class="ios-modal-actions">
+            <div class="ios-modal-btn cancel" onclick="closeIosPrompt()">取消</div>
+            <div class="ios-modal-btn confirm" onclick="confirmIosPrompt()">确定</div>
         </div>
     </div>
 </div>
 
-<div class="toast" id="sys-toast">提示</div>
+<div class="toast" id="sys-toast">提示信息</div>
 
 <script>
-    // --- 全局基础与工具 ---
+    // --- 基础工具库 ---
     let toastTimer;
     function showToast(msg) {
         const toast = document.getElementById('sys-toast');
@@ -344,317 +368,297 @@
         clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
     }
 
-    // 实时时间
-    function updateTime() {
-        const now = new Date(), y = now.getFullYear(), m = now.getMonth()+1, d = now.getDate();
-        const hrs = String(now.getHours()).padStart(2,'0'), mins = String(now.getMinutes()).padStart(2,'0');
-        const days = ['日', '一', '二', '三', '四', '五', '六'];
-        if(document.getElementById('top-time')) document.getElementById('top-time').innerHTML = `${m}月${d}日 · 星期${days[now.getDay()]}<br>${hrs}:${mins}`;
-        if(document.getElementById('bottom-date')) document.getElementById('bottom-date').innerText = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        if(document.getElementById('bottom-time')) document.getElementById('bottom-time').innerText = `${hrs}:${mins}`;
+    // 自定义 iOS Prompt
+    let promptCallback = null;
+    function openIosPrompt(title, placeholder, callback) {
+        document.getElementById('ios-prompt-title').innerText = title;
+        document.getElementById('ios-prompt-input').placeholder = placeholder;
+        document.getElementById('ios-prompt-input').value = '';
+        promptCallback = callback;
+        document.getElementById('ios-prompt').classList.add('active');
+        document.getElementById('ios-prompt-input').focus();
     }
-    updateTime(); setInterval(updateTime, 1000);
+    function closeIosPrompt() { document.getElementById('ios-prompt').classList.remove('active'); }
+    function confirmIosPrompt() {
+        const val = document.getElementById('ios-prompt-input').value.trim();
+        if(!val) { showToast('内容不能为空'); return; }
+        closeIosPrompt(); if(promptCallback) promptCallback(val);
+    }
 
-    // --- 书籍数据全局管理 ---
-    let booksData = JSON.parse(localStorage.getItem('booksData')) || [];
-    let currentBookId = null;
+    // --- 实时时间 ---
+    function updateRealTime() {
+        const now = new Date(); const year = now.getFullYear(); const month = now.getMonth() + 1; const date = now.getDate();
+        const days = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+        const hours = String(now.getHours()).padStart(2, '0'); const minutes = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('top-time').innerHTML = `${month}月${date}日 · ${days[now.getDay()]}<br>${hours}:${minutes}`;
+        document.getElementById('bottom-date').innerText = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+        document.getElementById('bottom-time').innerText = `${hours}:${minutes}`;
+    }
+    updateRealTime(); setInterval(updateRealTime, 1000);
 
-    function renderBookshelf() {
-        const grid = document.getElementById('book-grid');
-        grid.innerHTML = '';
-        document.getElementById('book-count').innerText = booksData.length + '本';
-        document.getElementById('empty-state').style.display = booksData.length ? 'none' : 'block';
-
-        booksData.forEach(book => {
-            const item = document.createElement('div');
-            item.className = 'book-item';
-            item.dataset.id = book.id;
-            item.onclick = () => {
-                if (isEditMode) { item.classList.toggle('selected'); document.getElementById('selected-count').innerText = document.querySelectorAll('.book-item.selected').length; }
+    // --- 【修复】彻底解决头像过大无法保存：Canvas 纯前端图片压缩压缩 ---
+    function compressAndSaveAvatar(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                // 限制头像最大宽高为 300px
+                const maxSize = 300;
+                let w = img.width, h = img.height;
+                if (w > h) { if (w > maxSize) { h = Math.round(h *= maxSize / w); w = maxSize; } } 
+                else { if (h > maxSize) { w = Math.round(w *= maxSize / h); h = maxSize; } }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                
+                // 压缩为 jpeg 格式，质量0.8，大幅度减小 Base64 体积，规避 5MB 限制
+                const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                document.getElementById('profile-avatar').src = compressedBase64;
+                localStorage.setItem('userAvatar', compressedBase64);
             };
-            item.innerHTML = `
-                <div class="book-cover-wrap"><div class="book-checkbox"></div><img src="${book.cover}" class="book-cover"></div>
-                <div class="book-info"><div class="book-title">${book.title}</div><div class="book-progress">0.0%</div></div>
-            `;
-            grid.appendChild(item);
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // --- 本地数据恢复初始化 ---
+    window.addEventListener('DOMContentLoaded', () => {
+        // 恢复头像
+        const savedAvatar = localStorage.getItem('userAvatar');
+        if(savedAvatar) document.getElementById('profile-avatar').src = savedAvatar;
+
+        // 恢复日记文本
+        ['edit-name', 'edit-id', 'edit-sign'].forEach(id => {
+            const savedText = localStorage.getItem(id);
+            if(savedText) document.getElementById(id).innerHTML = savedText;
+            document.getElementById(id).addEventListener('input', function() { localStorage.setItem(id, this.innerHTML); });
+        });
+        
+        // 恢复 API 配置
+        document.getElementById('api-url').value = localStorage.getItem('apiUrl') || '';
+        document.getElementById('api-key').value = localStorage.getItem('apiKey') || '';
+        const savedModel = localStorage.getItem('apiModel');
+        if (savedModel) {
+            document.getElementById('model-group').style.display = 'block';
+            document.getElementById('api-model').innerHTML = `<option value="${savedModel}">${savedModel}</option>`;
+        }
+        refreshPresetList();
+
+        // 恢复书库配置
+        initLibrary();
+    });
+
+    // 头像点击绑定
+    const avatarImg = document.getElementById('profile-avatar');
+    const avatarUpload = document.getElementById('avatarUpload');
+    avatarImg.addEventListener('click', () => avatarUpload.click());
+    avatarUpload.addEventListener('change', (e) => {
+        if (e.target.files[0]) compressAndSaveAvatar(e.target.files[0]);
+    });
+
+    // --- 全局 Tab 切换逻辑升级 ---
+    function switchTab(tabId, element) {
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        element.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        
+        // 动态改变全局头部的标题和右侧按钮
+        const titleEl = document.getElementById('main-header-title');
+        const countEl = document.getElementById('book-count');
+        const rightEl = document.getElementById('header-normal-right');
+        
+        if (tabId === 'tab-bookshelf') {
+            titleEl.innerText = '书架'; titleEl.style.color = '#2b67d8'; countEl.style.display = 'inline-block';
+            rightEl.innerHTML = `<svg viewBox="0 0 24 24" class="header-icon" onclick="toggleEditMode()"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>`;
+        } else if (tabId === 'tab-library') {
+            titleEl.innerText = '书库'; titleEl.style.color = '#1D1D1F'; countEl.style.display = 'none';
+            // 书库界面右上角变成加号
+            rightEl.innerHTML = `<svg viewBox="0 0 24 24" class="header-icon" onclick="promptAddLibraryNovel()"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`;
+        } else {
+            titleEl.innerText = tabId === 'tab-profile' ? '我的' : '统计'; titleEl.style.color = '#1D1D1F';
+            countEl.style.display = 'none'; rightEl.innerHTML = '';
+        }
+
+        if (tabId !== 'tab-bookshelf' && isEditMode) toggleEditMode();
+    }
+
+    // --- 新增：书库系统逻辑 ---
+    let libraryData = [];
+    let currentLibIndex = -1;
+
+    function initLibrary() {
+        const localData = localStorage.getItem('libraryData');
+        if (localData) { libraryData = JSON.parse(localData); }
+        renderLibrarySidebar();
+    }
+
+    function promptAddLibraryNovel() {
+        openIosPrompt('新建小说设定', '输入小说名称', (name) => {
+            libraryData.push({
+                name: name, intro: '', maleLead: '', femaleLead: '', bgSetting: '', hiddenPlot: ''
+            });
+            saveLibraryData();
+            renderLibrarySidebar();
+            switchLibTab(libraryData.length - 1);
         });
     }
 
-    // 测试添加一本书
-    function debugAddBook() {
-        const newBook = {
-            id: Date.now().toString(),
-            title: `《测试小说${booksData.length + 1}》`,
-            cover: "https://images.unsplash.com/photo-1518173946687-a4c8892bbd9f?w=300&q=80",
-            summary: "", characters: "", world: "", hidden: ""
-        };
-        booksData.unshift(newBook);
-        saveBooksData();
-        renderBookshelf();
-    }
-
-    function saveBooksData() {
-        localStorage.setItem('booksData', JSON.stringify(booksData));
-    }
-
-    // 多选删除功能
-    let isEditMode = false;
-    function toggleEditMode() {
-        const app = document.getElementById('app-container');
-        isEditMode = !isEditMode;
-        if(isEditMode){
-            app.classList.add('mode-edit');
-            document.getElementById('header-normal-left').style.display='none'; document.getElementById('header-normal-right').style.display='none';
-            document.getElementById('header-edit-left').style.display='flex'; document.getElementById('header-edit-center').style.display='block'; document.getElementById('header-edit-right').style.display='flex';
-            document.getElementById('bottom-nav').style.display='none';
-            document.getElementById('selected-count').innerText = '0';
-        }else{
-            app.classList.remove('mode-edit');
-            document.getElementById('header-normal-left').style.display='flex'; document.getElementById('header-normal-right').style.display='flex';
-            document.getElementById('header-edit-left').style.display='none'; document.getElementById('header-edit-center').style.display='none'; document.getElementById('header-edit-right').style.display='none';
-            document.getElementById('bottom-nav').style.display='flex';
-            document.querySelectorAll('.book-item').forEach(i => i.classList.remove('selected'));
-        }
-    }
-    function deleteSelected() {
-        const selected = Array.from(document.querySelectorAll('.book-item.selected')).map(el => el.dataset.id);
-        if(!selected.length) return;
-        if(confirm(`确认删除这 ${selected.length} 本小说吗？`)){
-            booksData = booksData.filter(b => !selected.includes(b.id));
-            saveBooksData(); renderBookshelf(); toggleEditMode();
-        }
-    }
-
-    // --- 书库 (Library) 逻辑 ---
     function renderLibrarySidebar() {
         const sidebar = document.getElementById('lib-sidebar');
         sidebar.innerHTML = '';
-        if(booksData.length === 0) {
-            sidebar.innerHTML = '<div style="padding:20px;text-align:center;color:#999;font-size:12px;">书架为空</div>';
-            document.getElementById('lib-editor').classList.remove('active');
+        if(libraryData.length === 0) {
+            document.getElementById('lib-content').innerHTML = `<div class="lib-empty">点击右上角“+”添加小说设定</div>`;
             return;
         }
-        booksData.forEach((book, index) => {
-            const item = document.createElement('div');
-            item.className = 'lib-nav-item';
-            item.innerText = book.title;
-            item.onclick = () => loadBookIntoEditor(book.id, item);
-            sidebar.appendChild(item);
-            if(index === 0) loadBookIntoEditor(book.id, item); // 默认选中第一个
+        libraryData.forEach((book, index) => {
+            const div = document.createElement('div');
+            div.className = `lib-tab ${index === currentLibIndex ? 'active' : ''}`;
+            div.innerText = book.name;
+            div.onclick = () => switchLibTab(index);
+            sidebar.appendChild(div);
         });
+        // 默认选中第一个
+        if (currentLibIndex === -1 || currentLibIndex >= libraryData.length) switchLibTab(0);
     }
 
-    function loadBookIntoEditor(id, el) {
-        document.querySelectorAll('.lib-nav-item').forEach(i => i.classList.remove('active'));
-        if(el) el.classList.add('active');
-        currentBookId = id;
-        const book = booksData.find(b => b.id === id);
-        if(!book) return;
+    function switchLibTab(index) {
+        currentLibIndex = index;
+        const tabs = document.querySelectorAll('.lib-tab');
+        tabs.forEach((t, i) => { t.classList.toggle('active', i === index); });
         
-        document.getElementById('lib-editor').classList.add('active');
-        document.getElementById('lib-title').value = book.title || '';
-        document.getElementById('lib-cover').value = book.cover || '';
-        document.getElementById('lib-summary').value = book.summary || '';
-        document.getElementById('lib-characters').value = book.characters || '';
-        document.getElementById('lib-world').value = book.world || '';
-        document.getElementById('lib-hidden').value = book.hidden || '';
+        const content = document.getElementById('lib-content');
+        const book = libraryData[index];
+        
+        // 动态生成表单，绑定 oninput 实时保存事件
+        content.innerHTML = `
+            <div class="lib-field">
+                <span class="lib-label">小说名称</span>
+                <input type="text" class="lib-input" value="${book.name}" oninput="updateLibField('name', this.value)">
+            </div>
+            <div class="lib-field">
+                <span class="lib-label">小说简介</span>
+                <textarea class="lib-textarea" placeholder="写下故事大概..." oninput="updateLibField('intro', this.value)">${book.intro}</textarea>
+            </div>
+            <div class="lib-field">
+                <span class="lib-label">男主人设</span>
+                <textarea class="lib-textarea" style="min-height: 70px;" placeholder="外貌、性格、身份..." oninput="updateLibField('maleLead', this.value)">${book.maleLead}</textarea>
+            </div>
+            <div class="lib-field">
+                <span class="lib-label">女主人设 / 配角</span>
+                <textarea class="lib-textarea" style="min-height: 70px;" placeholder="外貌、性格、身份..." oninput="updateLibField('femaleLead', this.value)">${book.femaleLead}</textarea>
+            </div>
+            <div class="lib-field">
+                <span class="lib-label">世界观与背景设定</span>
+                <textarea class="lib-textarea" placeholder="架空时代、科幻星际、修仙境界划分..." oninput="updateLibField('bgSetting', this.value)">${book.bgSetting}</textarea>
+            </div>
+            <div class="lib-field">
+                <span class="lib-label">伏笔暗线 (仅限创作者查看)</span>
+                <textarea class="lib-textarea" placeholder="不能在正文明确写出的隐情，为后期反转做准备..." oninput="updateLibField('hiddenPlot', this.value)">${book.hiddenPlot}</textarea>
+            </div>
+            <button class="ios-btn" style="color: var(--danger-color); margin-top: 20px;" onclick="deleteCurrentLib()">删除该小说设定</button>
+        `;
     }
 
-    function saveCurrentBook() {
-        if(!currentBookId) return;
-        const book = booksData.find(b => b.id === currentBookId);
-        if(book) {
-            book.title = document.getElementById('lib-title').value;
-            book.cover = document.getElementById('lib-cover').value;
-            book.summary = document.getElementById('lib-summary').value;
-            book.characters = document.getElementById('lib-characters').value;
-            book.world = document.getElementById('lib-world').value;
-            book.hidden = document.getElementById('lib-hidden').value;
-            saveBooksData();
-            
-            // 同步更新左侧名字
-            const activeNav = document.querySelector('.lib-nav-item.active');
-            if(activeNav) activeNav.innerText = book.title || '未命名';
+    function updateLibField(field, value) {
+        libraryData[currentLibIndex][field] = value;
+        saveLibraryData();
+        // 如果改了名字，同步更新左侧边栏显示
+        if (field === 'name') {
+            document.querySelectorAll('.lib-tab')[currentLibIndex].innerText = value || '未命名';
         }
     }
 
-    // 导航栏切换
-    function switchTab(tabId, element, titleName) {
-        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-        element.classList.add('active');
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        
-        // 顶栏名字同步
-        document.querySelector('.header-title').innerText = titleName;
-        document.getElementById('book-count').style.display = (tabId==='tab-bookshelf') ? 'inline' : 'none';
-        document.querySelector('.header-icon').style.display = (tabId==='tab-bookshelf') ? 'inline' : 'none';
-
-        if(tabId === 'tab-library') renderLibrarySidebar();
-        if(tabId === 'tab-bookshelf') renderBookshelf();
-        if(isEditMode) toggleEditMode();
+    function deleteCurrentLib() {
+        if(confirm('确定要删除这本小说的设定吗？无法恢复！')) {
+            libraryData.splice(currentLibIndex, 1);
+            currentLibIndex = -1;
+            saveLibraryData();
+            renderLibrarySidebar();
+        }
     }
 
-    // --- 头像上传 (Canvas 压缩解决溢出 Bug) ---
-    const avatarImg = document.getElementById('profile-avatar');
-    const avatarUpload = document.getElementById('avatarUpload');
-    avatarImg.onclick = () => avatarUpload.click();
-    
-    avatarUpload.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                // 压缩限制为 256x256，避免 localstorage 炸掉
-                const MAX_SIZE = 256;
-                let w = img.width, h = img.height;
-                if(w > MAX_SIZE || h > MAX_SIZE){
-                    if(w > h){ h *= MAX_SIZE / w; w = MAX_SIZE; }
-                    else { w *= MAX_SIZE / h; h = MAX_SIZE; }
-                }
-                canvas.width = w; canvas.height = h;
-                ctx.drawImage(img, 0, 0, w, h);
-                const compressedData = canvas.toDataURL('image/jpeg', 0.8);
-                avatarImg.src = compressedData;
-                try {
-                    localStorage.setItem('userAvatar', compressedData);
-                } catch(err) {
-                    showToast('手机图片依然过大，保存失败');
-                }
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
+    function saveLibraryData() { localStorage.setItem('libraryData', JSON.stringify(libraryData)); }
 
-    // 文字本地恢复
-    ['edit-name', 'edit-id', 'edit-sign'].forEach(id => {
-        const s = localStorage.getItem(id);
-        if(s) document.getElementById(id).innerHTML = s;
-        document.getElementById(id).addEventListener('input', function(){ localStorage.setItem(id, this.innerHTML); });
-    });
-
-    // 初始化渲染
-    window.onload = () => {
-        const savedAv = localStorage.getItem('userAvatar');
-        if(savedAv) avatarImg.src = savedAv;
-        renderBookshelf();
-        initApiPresets();
-    };
-
-    // --- API 弹窗与预设逻辑 ---
+    // --- API 页面与预设逻辑 ---
     let apiPresets = JSON.parse(localStorage.getItem('apiPresets')) || [];
-    let activePresetId = localStorage.getItem('activePresetId') || null;
 
-    function openApiModal() { 
-        document.getElementById('api-modal-overlay').classList.add('active'); 
-        refreshPresetSelect();
-    }
-    function closeApiModal() { document.getElementById('api-modal-overlay').classList.remove('active'); }
+    function openApiPage() { document.getElementById('page-api').classList.add('active'); }
+    function closeApiPage() { document.getElementById('page-api').classList.remove('active'); }
 
-    function refreshPresetSelect() {
-        const sel = document.getElementById('api-preset-select');
-        sel.innerHTML = '<option value="new">-- 新增预设 --</option>';
-        apiPresets.forEach(p => {
-            sel.innerHTML += `<option value="${p.id}">${p.remark}</option>`;
+    function refreshPresetList() {
+        const select = document.getElementById('api-preset-select');
+        select.innerHTML = '<option value="">-- 手动填写 --</option>';
+        apiPresets.forEach((p, idx) => {
+            select.innerHTML += `<option value="${idx}">${p.remark}</option>`;
         });
-        if(activePresetId && apiPresets.find(p => p.id === activePresetId)){
-            sel.value = activePresetId;
-            onPresetChange();
-        } else {
-            clearApiInputs();
-        }
     }
 
-    function onPresetChange() {
-        const val = document.getElementById('api-preset-select').value;
-        if(val === 'new'){
-            clearApiInputs();
-        } else {
-            const p = apiPresets.find(x => x.id === val);
-            if(p){
-                document.getElementById('api-remark').value = p.remark || '';
-                document.getElementById('api-url').value = p.url || '';
-                document.getElementById('api-key').value = p.key || '';
-                if(p.model) {
-                    document.getElementById('api-model').innerHTML = `<option value="${p.model}">${p.model}</option>`;
-                } else {
-                    document.getElementById('api-model').innerHTML = `<option value="">请先拉取模型...</option>`;
-                }
+    function triggerSavePreset() {
+        openIosPrompt('保存新预设', '请输入预设备注名 (如: GPT4-官方)', (remark) => {
+            const url = document.getElementById('api-url').value;
+            const key = document.getElementById('api-key').value;
+            const model = document.getElementById('api-model').value || '';
+            apiPresets.push({ remark, url, key, model });
+            localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
+            showToast('预设保存成功');
+            refreshPresetList();
+            document.getElementById('api-preset-select').value = apiPresets.length - 1;
+        });
+    }
+
+    function loadPreset() {
+        const idx = document.getElementById('api-preset-select').value;
+        if(idx !== "") {
+            const p = apiPresets[idx];
+            document.getElementById('api-url').value = p.url;
+            document.getElementById('api-key').value = p.key;
+            if(p.model) {
+                document.getElementById('model-group').style.display = 'block';
+                document.getElementById('api-model').innerHTML = `<option value="${p.model}">${p.model}</option>`;
             }
         }
-    }
-
-    function clearApiInputs() {
-        document.getElementById('api-remark').value = '';
-        document.getElementById('api-url').value = '';
-        document.getElementById('api-key').value = '';
-        document.getElementById('api-model').innerHTML = '<option value="">请先配置地址并拉取模型...</option>';
-    }
-
-    function saveAsPreset() {
-        const remark = document.getElementById('api-remark').value.trim();
-        const url = document.getElementById('api-url').value.trim();
-        const key = document.getElementById('api-key').value.trim();
-        
-        if(!remark) { showToast('请输入预设备注名'); return; }
-        
-        const newPreset = { id: 'p_'+Date.now(), remark, url, key, model: document.getElementById('api-model').value };
-        apiPresets.push(newPreset);
-        localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
-        
-        activePresetId = newPreset.id;
-        showToast('已保存预设');
-        refreshPresetSelect();
     }
 
     function applyApiConfig() {
-        const selVal = document.getElementById('api-preset-select').value;
-        // 如果是在某预设下修改了，自动更新它
-        if(selVal !== 'new') {
-            const p = apiPresets.find(x => x.id === selVal);
-            if(p){
-                p.remark = document.getElementById('api-remark').value.trim() || p.remark;
-                p.url = document.getElementById('api-url').value.trim();
-                p.key = document.getElementById('api-key').value.trim();
-                p.model = document.getElementById('api-model').value;
-                localStorage.setItem('apiPresets', JSON.stringify(apiPresets));
-            }
-        }
-        localStorage.setItem('activePresetId', selVal);
-        showToast('配置已应用');
-        setTimeout(closeApiModal, 600);
+        localStorage.setItem('apiUrl', document.getElementById('api-url').value);
+        localStorage.setItem('apiKey', document.getElementById('api-key').value);
+        localStorage.setItem('apiModel', document.getElementById('api-model').value || '');
+        showToast('应用成功');
+        setTimeout(() => closeApiPage(), 600);
     }
 
     async function fetchModels() {
         let url = document.getElementById('api-url').value.trim();
         const key = document.getElementById('api-key').value.trim();
         if (!url || !key) { showToast('请先填写地址和密钥'); return; }
-        
-        showToast('拉取模型中...');
-        url = url.replace(/\/+$/, '') + '/models';
+        showToast('正在获取模型...');
+        const fetchUrl = url.replace(/\/+$/, '') + '/models';
         try {
-            const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + key } });
-            const data = await res.json();
+            const response = await fetch(fetchUrl, { method: 'GET', headers: { 'Authorization': 'Bearer ' + key } });
+            const data = await response.json();
             if (data && data.data && data.data.length > 0) {
-                const select = document.getElementById('api-model');
-                select.innerHTML = '';
-                data.data.forEach(m => select.innerHTML += `<option value="${m.id}">${m.id}</option>`);
-                showToast('获取成功');
-            } else {
-                showToast('未找到可用模型');
-            }
-        } catch (e) {
-            showToast('跨域或请求失败，加载本地备用列表');
-            const select = document.getElementById('api-model');
-            select.innerHTML = '';
-            ['gpt-3.5-turbo', 'gpt-4o', 'claude-3-opus', 'gemini-1.5-pro'].forEach(m => select.innerHTML += `<option value="${m}">${m}</option>`);
+                renderModels(data.data.map(m => m.id)); showToast('拉取成功');
+            } else { showToast('未找到可用模型'); }
+        } catch (error) {
+            showToast('跨域拦截或请求失败，提供模拟列表');
+            renderModels(['gpt-3.5-turbo', 'gpt-4', 'claude-3-opus', 'gemini-pro']);
         }
     }
+
+    function renderModels(models) {
+        const select = document.getElementById('api-model'); select.innerHTML = '';
+        models.forEach(model => { select.innerHTML += `<option value="${model}">${model}</option>`; });
+        document.getElementById('model-group').style.display = 'block';
+    }
+
+    // --- 书架占位功能 ---
+    let isEditMode = false;
+    function debugAddBook() { /* 隐藏的点击书架标题添加测试书 */ }
+    function toggleEditMode() {}
+    function deleteSelected() {}
 </script>
 
 </body>
